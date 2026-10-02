@@ -1,0 +1,25 @@
+{
+  "result": "success",
+  "users": [
+    {
+      "id": 1,
+      "name": "Сергей",
+      "lastname": "Сергеев"
+    },
+    {
+      "id": 3,
+      "name": "Руководитель тест",
+      "lastname": ""
+    },
+    {
+      "id": 5,
+      "name": "Бухгалтер Тест",
+      "lastname": ""
+    },
+    {
+      "id": 7,
+      "name": "payback robot",
+      "lastname": ""
+    }
+  ]
+}

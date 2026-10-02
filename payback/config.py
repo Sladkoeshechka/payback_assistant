@@ -1,0 +1,195 @@
+"""Settings read from environment variables (docs/spec.md §9).
+
+The Planfix object, field and status ids add up to ~20 variables. They are grouped
+into nested settings models that each read their own prefix, so the environment
+names stay exactly as the spec documents them (``PLANFIX_FIELD_AMOUNT``) while code
+reads ``settings.planfix.fields.amount``.
+
+Two findings from docs/planfix-notes.md shape this module:
+
+* Status **names differ between accounts** — id 108 is "компенсация завершена" on the
+  test account but "Компенсировано" in the spec — so every status is addressed by id.
+  The webhook body carries a name, and the bot never trusts it (spec §8).
+* The account carries **duplicate custom fields** (141470/141472 next to the real
+  141370/141372) that could not be deleted. A name-based field lookup would be
+  ambiguous, so field ids are always configured explicitly.
+"""
+
+from decimal import Decimal
+from functools import lru_cache
+from typing import Any, Literal
+
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = ".env"
+
+
+def _env(name: str) -> Any:
+    """Declare a required setting bound to an explicit environment variable.
+
+    Spelling the variable out rather than deriving it from an ``env_prefix`` is what
+    makes a misconfiguration readable: pydantic reports the missing key as
+    ``PLANFIX_FIELD_AMOUNT`` instead of ``PlanfixFieldIds.amount``, which is what the
+    startup check in spec §8 is supposed to print.
+    """
+    return Field(validation_alias=name)
+
+
+class PlanfixFieldIds(BaseSettings):
+    """Ids of the custom task fields making up the "Расход" card (spec §6)."""
+
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
+
+    amount: int = _env("PLANFIX_FIELD_AMOUNT")
+    purchase_date: int = _env("PLANFIX_FIELD_PURCHASE_DATE")
+    category: int = _env("PLANFIX_FIELD_CATEGORY")
+    direction: int = _env("PLANFIX_FIELD_DIRECTION")
+    employee: int = _env("PLANFIX_FIELD_EMPLOYEE")
+    fn: int = _env("PLANFIX_FIELD_FN")
+    fd: int = _env("PLANFIX_FIELD_FD")
+    fp: int = _env("PLANFIX_FIELD_FP")
+    no_receipt: int = _env("PLANFIX_FIELD_NO_RECEIPT")
+    payment_date: int = _env("PLANFIX_FIELD_PAYMENT_DATE")
+
+    def all_ids(self) -> list[int]:
+        return [getattr(self, name) for name in type(self).model_fields]
+
+    @model_validator(mode="after")
+    def ids_must_be_distinct(self) -> "PlanfixFieldIds":
+        _reject_duplicates(self.all_ids(), "PLANFIX_FIELD_*")
+        return self
+
+
+class PlanfixStatusIds(BaseSettings):
+    """Ids of the "Расход" status set (spec §5)."""
+
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
+
+    pending: int = _env("PLANFIX_STATUS_PENDING")
+    clarification: int = _env("PLANFIX_STATUS_CLARIFICATION")
+    approved: int = _env("PLANFIX_STATUS_APPROVED")
+    rejected: int = _env("PLANFIX_STATUS_REJECTED")
+    needs_revision: int = _env("PLANFIX_STATUS_NEEDS_REVISION")
+    to_pay: int = _env("PLANFIX_STATUS_TO_PAY")
+    reimbursed: int = _env("PLANFIX_STATUS_REIMBURSED")
+
+    def all_ids(self) -> list[int]:
+        return [getattr(self, name) for name in type(self).model_fields]
+
+    @model_validator(mode="after")
+    def ids_must_be_distinct(self) -> "PlanfixStatusIds":
+        _reject_duplicates(self.all_ids(), "PLANFIX_STATUS_*")
+        return self
+
+
+class PlanfixSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
+
+    account: str = _env("PLANFIX_ACCOUNT")
+    api_token: SecretStr = _env("PLANFIX_API_TOKEN")
+    object_id: int = _env("PLANFIX_OBJECT_ID")
+
+    fields: PlanfixFieldIds = Field(default_factory=lambda: PlanfixFieldIds())
+    statuses: PlanfixStatusIds = Field(default_factory=lambda: PlanfixStatusIds())
+
+    @field_validator("account")
+    @classmethod
+    def normalize_account(cls, value: str) -> str:
+        value = value.strip().rstrip("/")
+        if not value.startswith(("http://", "https://")):
+            raise ValueError(
+                "PLANFIX_ACCOUNT must include the scheme, e.g. https://acme.planfix.ru"
+            )
+        return value
+
+    @property
+    def rest_base_url(self) -> str:
+        """Base URL of the REST API (planfix-notes.md §6)."""
+        return f"{self.account}/rest"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
+
+    bot_token: SecretStr
+    owner_telegram_id: int
+
+    proxy_url: str | None = None
+    """Optional proxy for the Telegram API, for hosts without direct access."""
+
+    webhook_secret: SecretStr
+    database_url: str = "sqlite+aiosqlite:///./payback.db"
+
+    max_amount: Decimal = Decimal("100000")
+    max_receipt_age_days: int = 90
+    allow_no_receipt: bool = True
+    no_receipt_max_amount: Decimal | None = None
+
+    dev_mode: bool = False
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    planfix: PlanfixSettings = Field(default_factory=lambda: PlanfixSettings())
+
+    @field_validator("proxy_url", "no_receipt_max_amount", mode="before")
+    @classmethod
+    def blank_means_unset(cls, value: object) -> object:
+        """An empty variable means "not set".
+
+        Spec §9 defines NO_RECEIPT_MAX_AMOUNT as "пусто — без ограничения", and
+        .env files carry empty values far more often than missing lines.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("max_amount", "no_receipt_max_amount")
+    @classmethod
+    def amount_must_be_positive(cls, value: Decimal | None) -> Decimal | None:
+        if value is not None and value <= 0:
+            raise ValueError("amount limits must be greater than 0")
+        return value
+
+    @field_validator("max_receipt_age_days")
+    @classmethod
+    def age_must_be_positive(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("MAX_RECEIPT_AGE_DAYS must be greater than 0")
+        return value
+
+    @model_validator(mode="after")
+    def no_receipt_limit_within_max(self) -> "Settings":
+        if self.no_receipt_max_amount is not None and self.no_receipt_max_amount > self.max_amount:
+            raise ValueError("NO_RECEIPT_MAX_AMOUNT must not exceed MAX_AMOUNT")
+        return self
+
+    def secrets(self) -> list[str]:
+        """Every secret value, for registration with the log redactor."""
+        return [
+            self.bot_token.get_secret_value(),
+            self.webhook_secret.get_secret_value(),
+            self.planfix.api_token.get_secret_value(),
+        ]
+
+
+def _reject_duplicates(ids: list[int], group: str) -> None:
+    if len(set(ids)) != len(ids):
+        raise ValueError(
+            f"{group} ids must be distinct; two entries sharing an id would make "
+            "field writes or status transitions ambiguous"
+        )
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Process-wide settings, read once."""
+    return Settings()
+
+
+__all__ = [
+    "PlanfixFieldIds",
+    "PlanfixSettings",
+    "PlanfixStatusIds",
+    "Settings",
+    "get_settings",
+]

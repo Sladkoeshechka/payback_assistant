@@ -1,0 +1,65 @@
+[project]
+name = "payback"
+version = "0.1.0"
+description = "Telegram bot for approving employee expenses in Planfix"
+readme = "docs/spec.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.31",
+    "fastapi>=0.142",
+    "uvicorn[standard]>=0.54",
+    "sqlalchemy[asyncio]>=2.1",
+    "alembic>=1.20",
+    "asyncpg>=0.31",
+    "aiosqlite>=0.22",
+    "httpx>=0.28",
+    "pydantic>=2.13",
+    "pydantic-settings>=2.15",
+    "opencv-python-headless>=5.0",
+    "pillow>=12",
+]
+
+[project.optional-dependencies]
+# pyzbar is a ctypes wrapper over libzbar.so, which is absent on the dev host and
+# needs root to install. OpenCV's QRCodeDetector is the primary decoder; pyzbar is
+# an optional second pass enabled in the Docker image. See docs/plan.md §5.
+zbar = ["pyzbar>=0.1.9"]
+dev = [
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "respx>=0.23",
+    "ruff>=0.16",
+    "mypy>=2.4",
+]
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["payback*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+
+# Development happens on Python 3.14 (the only interpreter on the dev host), but 3.12
+# is the supported floor per docs/spec.md §8. Pinning mypy to 3.12 is what keeps
+# 3.13+-only syntax and stdlib out of the codebase.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["cv2.*", "pyzbar.*"]
+ignore_missing_imports = true

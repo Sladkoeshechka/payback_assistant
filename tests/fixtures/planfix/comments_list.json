@@ -1,0 +1,85 @@
+{
+  "result": "success",
+  "comments": [
+    {
+      "id": 14348034,
+      "dateTime": {
+        "date": "02-10-2026",
+        "time": "11:53",
+        "datetime": "2026-10-02T11:53Z",
+        "dateTimeUtcSeconds": "2026-10-02T11:53:06+0000",
+        "dateTimeUtcWithSeconds": "2026-10-02T11:53:06+0000"
+      },
+      "type": "Comment",
+      "owner": {
+        "id": "user:3",
+        "name": "Руководитель тест"
+      },
+      "description": "<p>Комментарий-Ответ от руководителя</p>"
+    },
+    {
+      "id": 14346926,
+      "dateTime": {
+        "date": "02-10-2026",
+        "time": "11:22",
+        "datetime": "2026-10-02T11:22Z",
+        "dateTimeUtcSeconds": "2026-10-02T11:22:09+0000",
+        "dateTimeUtcWithSeconds": "2026-10-02T11:22:09+0000"
+      },
+      "type": "Comment",
+      "owner": {
+        "id": "user:7",
+        "name": "payback robot"
+      },
+      "description": "Ответ сотрудника: чек из другого магазина, там дешевле не было"
+    },
+    {
+      "id": 14346466,
+      "dateTime": {
+        "date": "02-10-2026",
+        "time": "11:09",
+        "datetime": "2026-10-02T11:09Z",
+        "dateTimeUtcSeconds": "2026-10-02T11:09:07+0000",
+        "dateTimeUtcWithSeconds": "2026-10-02T11:09:07+0000"
+      },
+      "type": "Comment",
+      "owner": {
+        "id": "user:7",
+        "name": "payback robot"
+      },
+      "description": "Ответ сотрудника: чек из другого магазина, там дешевле не было"
+    },
+    {
+      "id": 14313938,
+      "dateTime": {
+        "date": "01-10-2026",
+        "time": "19:19",
+        "datetime": "2026-10-01T19:19Z",
+        "dateTimeUtcSeconds": "2026-10-01T19:19:12+0000",
+        "dateTimeUtcWithSeconds": "2026-10-01T19:19:12+0000"
+      },
+      "type": "Comment",
+      "owner": {
+        "id": "user:7",
+        "name": "payback robot"
+      },
+      "description": "Ответ сотрудника: чек из другого магазина, там дешевле не было"
+    },
+    {
+      "id": 14313882,
+      "dateTime": {
+        "date": "01-10-2026",
+        "time": "19:16",
+        "datetime": "2026-10-01T19:16Z",
+        "dateTimeUtcSeconds": "2026-10-01T19:16:21+0000",
+        "dateTimeUtcWithSeconds": "2026-10-01T19:16:21+0000"
+      },
+      "type": "None",
+      "owner": {
+        "id": "user:7",
+        "name": "payback robot"
+      },
+      "description": ""
+    }
+  ]
+}

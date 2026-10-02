@@ -1,0 +1,125 @@
+{
+  "result": "success",
+  "statuses": [
+    {
+      "id": 0,
+      "name": "Черновик",
+      "isActive": false,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Черновик"
+        },
+        {
+          "lang": "En",
+          "name": "Draft"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "name": "На согласовании",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "На согласовании"
+        },
+        {
+          "lang": "En",
+          "name": "На согласовании"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "name": "Уточнение",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Уточнение"
+        },
+        {
+          "lang": "En",
+          "name": "Уточнение"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "name": "Одобрено",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Одобрено"
+        },
+        {
+          "lang": "En",
+          "name": "Одобрено"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "name": "К выплате",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "К выплате"
+        },
+        {
+          "lang": "En",
+          "name": "К выплате"
+        }
+      ]
+    },
+    {
+      "id": 106,
+      "name": "Отклонено",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Отклонено"
+        },
+        {
+          "lang": "En",
+          "name": "Отклонено"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "name": "компенсация завершена",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "компенсация завершена"
+        },
+        {
+          "lang": "En",
+          "name": "компенсация завершена"
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "name": "Требует доработки",
+      "isActive": true,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Требует доработки"
+        },
+        {
+          "lang": "En",
+          "name": "Требует доработки"
+        }
+      ]
+    }
+  ]
+}

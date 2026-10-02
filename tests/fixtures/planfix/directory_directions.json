@@ -1,0 +1,17 @@
+{
+  "result": "success",
+  "directory": {
+    "id": 11178,
+    "name": "Направления затрат",
+    "fields": [
+      {
+        "id": 34500,
+        "name": "Название",
+        "names": {},
+        "type": 0,
+        "typeName": "Short text",
+        "objectType": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "result": "success",
+  "task": {
+    "id": 36,
+    "name": "Расход: 890 ₽, Расходники — Мария Кузнецова",
+    "status": {
+      "id": 103,
+      "name": "Одобрено",
+      "color": "#00D06B",
+      "isActive": true,
+      "hasDeadline": true,
+      "isAppliedIndividually": false,
+      "texts": [
+        {
+          "lang": "Ru",
+          "name": "Одобрено"
+        },
+        {
+          "lang": "En",
+          "name": "Одобрено"
+        }
+      ]
+    },
+    "processId": 55456,
+    "assigner": {
+      "id": "user:7",
+      "name": "payback robot"
+    },
+    "template": {
+      "id": 17
+    },
+    "object": {
+      "id": 17
+    },
+    "assignees": {
+      "users": [],
+      "groups": [
+        {
+          "id": 31352,
+          "name": "Бухгалтеры"
+        }
+      ]
+    },
+    "participants": {
+      "users": [],
+      "groups": [
+        {
+          "id": 31354,
+          "name": "Руководители"
+        }
+      ]
+    },
+    "customFieldData": [
+      {
+        "field": {
+          "id": 141074,
+          "name": "Сумма",
+          "names": {
+            "ru": "Сумма"
+          },
+          "type": 1,
+          "typeName": "Number",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 2
+        },
+        "stringValue": "890",
+        "value": 890.0
+      },
+      {
+        "field": {
+          "id": 141378,
+          "name": "ФД",
+          "names": {
+            "ru": "ФД"
+          },
+          "type": 0,
+          "typeName": "Short text",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "40512",
+        "value": "40512"
+      },
+      {
+        "field": {
+          "id": 141376,
+          "name": "ФН",
+          "names": {
+            "ru": "ФН"
+          },
+          "type": 0,
+          "typeName": "Short text",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "7284440500112233",
+        "value": "7284440500112233"
+      },
+      {
+        "field": {
+          "id": 141382,
+          "name": "Без кассового чека",
+          "names": {
+            "ru": "Без кассового чека"
+          },
+          "type": 7,
+          "typeName": "Checkbox",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "0",
+        "value": false
+      },
+      {
+        "field": {
+          "id": 141076,
+          "name": "Дата покупки",
+          "names": {
+            "ru": "Дата покупки"
+          },
+          "type": 3,
+          "typeName": "Date",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "02-10-2026",
+        "value": {
+          "datetime": "2026-10-02T00:00Z",
+          "date": "02-10-2026",
+          "time": "00:00"
+        }
+      },
+      {
+        "field": {
+          "id": 141380,
+          "name": "ФП",
+          "names": {
+            "ru": "ФП"
+          },
+          "type": 0,
+          "typeName": "Short text",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "3141592653",
+        "value": "3141592653"
+      },
+      {
+        "field": {
+          "id": 141370,
+          "name": "Категория",
+          "names": {
+            "ru": "Категория"
+          },
+          "type": 9,
+          "typeName": "Directory entry",
+          "objectType": 0,
+          "directoryId": 11176,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "10",
+        "value": {
+          "id": 10,
+          "value": "Расходники"
+        }
+      },
+      {
+        "field": {
+          "id": 141384,
+          "name": "Дата выплаты",
+          "names": {
+            "ru": "Дата выплаты"
+          },
+          "type": 3,
+          "typeName": "Date",
+          "objectType": 0,
+          "options": [
+            {
+              "id": 8,
+              "name": "Automatically fill in current date"
+            }
+          ],
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "02-10-2026",
+        "value": {
+          "datetime": "2026-10-02T00:00Z",
+          "date": "02-10-2026",
+          "time": "00:00"
+        }
+      },
+      {
+        "field": {
+          "id": 141374,
+          "name": "Сотрудник",
+          "names": {
+            "ru": "Сотрудник"
+          },
+          "type": 0,
+          "typeName": "Short text",
+          "objectType": 0,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "Мария Кузнецова",
+        "value": "Мария Кузнецова"
+      },
+      {
+        "field": {
+          "id": 141372,
+          "name": "Направление затрат",
+          "names": {
+            "ru": "Направление затрат"
+          },
+          "type": 9,
+          "typeName": "Directory entry",
+          "objectType": 0,
+          "directoryId": 11178,
+          "delimiter": ",",
+          "numberOfDecimalPlaces": 0
+        },
+        "stringValue": "3",
+        "value": {
+          "id": 3,
+          "value": "Офис"
+        }
+      }
+    ]
+  }
+}

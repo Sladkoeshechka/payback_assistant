@@ -1,0 +1,10 @@
+{
+  "request": {
+    "result": "success"
+  },
+  "webhook response": {
+    "task": 34,
+    "secret": "test123",
+    "status": "Одобрено"
+  }
+}

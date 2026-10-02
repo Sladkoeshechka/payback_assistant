@@ -1,0 +1,90 @@
+{
+  "result": "success",
+  "directoryEntries": [
+    {
+      "key": 7,
+      "customFieldData": [
+        {
+          "field": {
+            "id": 34632,
+            "name": "Название",
+            "names": {},
+            "type": 0,
+            "typeName": "Short text",
+            "objectType": 2
+          },
+          "stringValue": "Материалы",
+          "value": "Материалы"
+        }
+      ]
+    },
+    {
+      "key": 11,
+      "customFieldData": [
+        {
+          "field": {
+            "id": 34632,
+            "name": "Название",
+            "names": {},
+            "type": 0,
+            "typeName": "Short text",
+            "objectType": 2
+          },
+          "stringValue": "Парковка",
+          "value": "Парковка"
+        }
+      ]
+    },
+    {
+      "key": 10,
+      "customFieldData": [
+        {
+          "field": {
+            "id": 34632,
+            "name": "Название",
+            "names": {},
+            "type": 0,
+            "typeName": "Short text",
+            "objectType": 2
+          },
+          "stringValue": "Расходники",
+          "value": "Расходники"
+        }
+      ]
+    },
+    {
+      "key": 9,
+      "customFieldData": [
+        {
+          "field": {
+            "id": 34632,
+            "name": "Название",
+            "names": {},
+            "type": 0,
+            "typeName": "Short text",
+            "objectType": 2
+          },
+          "stringValue": "Такси",
+          "value": "Такси"
+        }
+      ]
+    },
+    {
+      "key": 8,
+      "customFieldData": [
+        {
+          "field": {
+            "id": 34632,
+            "name": "Название",
+            "names": {},
+            "type": 0,
+            "typeName": "Short text",
+            "objectType": 2
+          },
+          "stringValue": "Топливо",
+          "value": "Топливо"
+        }
+      ]
+    }
+  ]
+}
