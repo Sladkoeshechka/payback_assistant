@@ -1,10 +1,17 @@
 import json
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
+from payback.db.models import Expense
 from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
@@ -59,6 +66,23 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[dict[str, s
     for key, value in ENV.items():
         monkeypatch.setenv(key, value)
     yield dict(ENV)
+
+
+@pytest.fixture
+async def db_engine() -> AsyncIterator[AsyncEngine]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Expense.metadata.create_all)
+
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
+async def session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
+    session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with session_factory() as database_session:
+        yield database_session
 
 
 @pytest.fixture(autouse=True)
