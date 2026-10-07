@@ -1,9 +1,13 @@
 import json
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from aiogram import Bot
+from aiogram.client.session.base import BaseSession
+from aiogram.methods import GetMe, TelegramMethod
+from aiogram.types import User
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -16,6 +20,37 @@ from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
 """Responses captured from the real Planfix API (planfix-notes.md §9)."""
+
+
+class RecordingSession(BaseSession):
+    """Fake Telegram transport that records outgoing bot API methods."""
+
+    def __init__(self, *, bot_username: str = "payback_test_bot") -> None:
+        super().__init__()
+        self.methods: list[TelegramMethod[Any]] = []
+        self._bot_username = bot_username
+
+    async def make_request(
+        self, bot: Bot, method: TelegramMethod[Any], timeout: int | None = None
+    ) -> Any:
+        self.methods.append(method)
+        if isinstance(method, GetMe):
+            return User(id=111, is_bot=True, first_name="Payback", username=self._bot_username)
+        return True
+
+    async def stream_content(
+        self,
+        url: str,
+        headers: dict[str, Any] | None = None,
+        timeout: int = 30,
+        chunk_size: int = 65536,
+        raise_for_status: bool = True,
+    ) -> AsyncGenerator[bytes, None]:
+        if False:
+            yield b""
+
+    async def close(self) -> None:
+        return None
 
 
 def load_fixture(name: str) -> Any:

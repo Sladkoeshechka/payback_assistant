@@ -3,11 +3,11 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from payback.bot.middlewares import DbRepositoryMiddleware
 from payback.bot.people import create_router
-from payback.config import Settings, get_settings
+from payback.config import Settings
 
 
 def create_bot(settings: Settings) -> Bot:
@@ -20,8 +20,11 @@ def create_bot(settings: Settings) -> Bot:
     return bot
 
 
-def create_dispatcher(settings: Settings, async_session: async_sessionmaker) -> Dispatcher:
+def create_dispatcher(
+    settings: Settings, async_session: async_sessionmaker[AsyncSession]
+) -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage(), settings=settings)
     dp.message.middleware(DbRepositoryMiddleware(session_factory=async_session))
+    dp.callback_query.middleware(DbRepositoryMiddleware(session_factory=async_session))
     dp.include_router(create_router())
     return dp
