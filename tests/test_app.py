@@ -1,5 +1,5 @@
-from collections.abc import AsyncGenerator
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import Any, AsyncGenerator
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
@@ -9,6 +9,15 @@ from aiogram.methods import TelegramMethod
 from payback.bot.app import create_dispatcher
 from payback.config import Settings
 
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker
+)
+
+from copy import deepcopy
+
+from payback.db.repositories.users import UsersRepo
 
 class RecordingSession(BaseSession):
     def __init__(self) -> None:
@@ -39,21 +48,35 @@ class RecordingSession(BaseSession):
         pass
 
 
-def test_create_dispatcher() -> None:
-    dispatcher = create_dispatcher()
+def test_create_dispatcher(env: dict[str, str], db_engine: AsyncIterator[AsyncEngine]) -> None:
+    settings = Settings()
+
+    session_factory = async_sessionmaker(
+        db_engine,
+        expire_on_commit=False,
+    )
+
+    dispatcher = create_dispatcher(settings, session_factory)
     assert isinstance(dispatcher.storage, MemoryStorage)
 
 
-async def test_start_command(env: dict[str, str]) -> None:
+async def test_manager_registration(env: dict[str, str],
+                                    db_engine: AsyncIterator[AsyncEngine],
+                                    session: AsyncIterator[AsyncSession]) -> None:
     settings = Settings()
 
-    session = RecordingSession()
+    telegram_session = RecordingSession()
     bot = Bot(
         token=settings.bot_token.get_secret_value(),
-        session=session,
+        session=telegram_session,
     )
 
-    dispatcher = create_dispatcher()
+    session_factory = async_sessionmaker(
+        db_engine,
+        expire_on_commit=False,
+    )
+
+    dispatcher = create_dispatcher(settings, session_factory)
 
     raw_update = {
         "update_id": 10000000,
@@ -64,28 +87,50 @@ async def test_start_command(env: dict[str, str]) -> None:
                 "id": 987654321,
                 "type": "private",
                 "first_name": "Test",
-                "username": "test_user",
+                "username": "test_manager",
             },
             "from": {
-                "id": 987654321,
+                "id": settings.owner_telegram_id,
                 "is_bot": False,
-                "first_name": "Test",
-                "username": "test_user",
+                "first_name": "David",
+                "username": "test_manager",
                 "language_code": "ru",
             },
-            "text": "/start",  # Наша команда
+            "text": "/start",
             "entities": [{"offset": 0, "length": 6, "type": "bot_command"}],
         },
     }
 
     await dispatcher.feed_raw_update(bot=bot, update=raw_update)
 
-    assert session.methods[-1].text == "Введите имя и фамилию."
+    assert telegram_session.methods[-1].text == "Введите имя и фамилию."
 
-    raw_update["message"]["text"] = "David Martinez"
+    new_update = deepcopy(raw_update)
+    new_update["message"]["text"] = "David Martinez"
+    new_update["update_id"] = raw_update["update_id"] + 1
+    new_update["message"]["message_id"] = 43
+    new_update["message"].pop("entities")
 
-    raw_update["update_id"] = 10000001
-    raw_update["message"]["message_id"] = 43
-    raw_update["message"].pop("entities")
+    await dispatcher.feed_raw_update(bot, new_update)
+
+    assert telegram_session.methods[-1].text == "Готово!"
 
     await dispatcher.feed_raw_update(bot, raw_update)
+
+    assert telegram_session.methods[-1].text == "Вы уже зарегестрированы!."
+
+    unknown_update = deepcopy(raw_update)
+    unknown_update["message"]["from"]["id"] = 10234
+
+    await dispatcher.feed_raw_update(bot, unknown_update)
+
+    assert telegram_session.methods[-1].text == "Вы не владелец, приглашение сотрудников только по ссылке!"
+
+    user = UsersRepo(session)
+
+    manager = await user.get_by_telegram_id(telegram_id=settings.owner_telegram_id)
+
+    assert manager is not None
+    assert manager.first_name == "David"
+    assert manager.last_name == "Martinez"
+
