@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings>=2.15",
     "opencv-python-headless>=5.0",
     "pillow>=12",
+    "aiohttp-socks>=0.10",
 ]
 
 [project.optional-dependencies]

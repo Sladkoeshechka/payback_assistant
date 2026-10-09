@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from payback.db.models import Expense
+from payback.db.base import Base
 from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
@@ -107,7 +107,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[dict[str, s
 async def db_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        await connection.run_sync(Expense.metadata.create_all)
+        await connection.run_sync(Base.metadata.create_all)
 
     yield engine
     await engine.dispose()

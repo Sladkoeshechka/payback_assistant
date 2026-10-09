@@ -1,3 +1,5 @@
+import asyncio
+
 from payback.main import main
 
-raise SystemExit(main())
+raise SystemExit(asyncio.run(main()))

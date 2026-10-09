@@ -6,13 +6,18 @@ the aiogram polling task arrive with the webhooks (§9) — until then this must
 pretend to start a bot.
 """
 
+import asyncio
 import logging
 import sys
 
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from payback import __version__
+from payback.bot.app import create_bot, create_dispatcher
 from payback.config import Settings, get_settings
+from payback.db.base import Base
+from payback.db.session import build_engine
 from payback.logging_setup import configure_logging, redact
 
 logger = logging.getLogger(__name__)
@@ -52,7 +57,7 @@ def describe(settings: Settings) -> dict[str, object]:
     }
 
 
-def main() -> int:
+async def main() -> int:
     try:
         settings = get_settings()
     except ValidationError as error:
@@ -65,8 +70,38 @@ def main() -> int:
     redact(*settings.secrets())
 
     logger.info("payback starting", extra=describe(settings))
+
+    engine = build_engine(settings.database_url)
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    bot = create_bot(settings)
+    dp = create_dispatcher(settings, session_factory)
+
+    try:
+        me = await bot.get_me()
+        logger.info("Бот подключен: @%s (id=%s)", me.username, me.id)
+    except Exception:
+        logger.exception("He удалось подключиться к Telegram. Проверьте конфигурацию.")
+        return 1
+
+    # Ha всякий случай чистим вебхуки перед стартом пуллинга
+    await bot.delete_webhook(drop_pending_updates=True)
+
+    # 4. Запускаем бесконечный цикл пуллинга (блокирующий вызов)
+    try:
+        logger.info("Пуллинг Telegram запущен")
+        await dp.start_polling(bot)
+    finally:
+        # Корректное закрытие ресурсов при остановке (Ctrl+C / docker stop)
+        await bot.session.close()
+        logger.info("Бот остановлен")
+
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(asyncio.run(main()))
