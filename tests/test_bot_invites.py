@@ -87,3 +87,73 @@ def _callback_update(update_id: int, user_id: int, data: str) -> dict[str, objec
             },
         },
     }
+
+
+async def test_user_receives_invite(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+
+    employee_user_id = 2
+    employee_user_role = UserRole.EMPLOYEE
+
+    settings = Settings()
+    manager = await UsersRepo(session).create(
+        telegram_id=settings.owner_telegram_id,
+        first_name="David",
+        last_name="Martinez",
+        role=employee_user_role,
+    )
+
+    invite = await InvitesRepo(session).create(
+        code="employee-invite",
+        role=employee_user_role,
+        created_by_id=manager.id,
+        expires_at=datetime.now(UTC) + timedelta(hours=72),
+    )
+
+    await session.commit()
+
+    telegram_session = RecordingSession()
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    dispatcher = create_dispatcher(settings, session_factory)
+
+    await dispatcher.feed_raw_update(
+        bot, _message_update(1, employee_user_id, f"/start {invite.code}")
+    )
+
+    invite_prompt = telegram_session.methods[-1]
+    assert (
+        getattr(invite_prompt, "text", None)
+        == f"Инвайт подтвержден! Ваша роль: {invite.role.value}. Введите ваше имя:"
+    )
+
+    await dispatcher.feed_raw_update(bot, _message_update(2, employee_user_id, "Martin Josef"))
+
+    employee_user = await UsersRepo(session).get_by_telegram_id(telegram_id=employee_user_id)
+
+    assert employee_user is not None
+    assert employee_user.role == employee_user_role
+    assert employee_user.manager_id == manager.id
+
+    saved_invite = await InvitesRepo(session).get_by_code(invite.code)
+    assert saved_invite is not None
+    assert saved_invite.used_by_id == employee_user.id
+    assert saved_invite.used_at is not None
+
+    notifications = [getattr(method, "text", None) for method in telegram_session.methods]
+    assert any(
+        text is not None and "Martin Josef" in text and "employee" in text for text in notifications
+    )
+
+    active_invites = await InvitesRepo(session).list_active_for_creator(
+        creator_id=manager.id, now=datetime.now(UTC)
+    )
+    assert active_invites == []
+
+    await dispatcher.feed_raw_update(
+        bot, _message_update(3, employee_user_id, f"/start {invite.code}")
+    )
+
+    invite_prompt = telegram_session.methods[-1]
+    assert getattr(invite_prompt, "text", None) == "Эта ссылка невалидна."

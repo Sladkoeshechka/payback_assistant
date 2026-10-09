@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from payback.bot.middlewares import DbRepositoryMiddleware
-from payback.bot.people import create_router
+from payback.bot.people import create_invite_router, create_router
 from payback.config import Settings
 
 
@@ -26,5 +26,6 @@ def create_dispatcher(
     dp = Dispatcher(storage=MemoryStorage(), settings=settings)
     dp.message.middleware(DbRepositoryMiddleware(session_factory=async_session))
     dp.callback_query.middleware(DbRepositoryMiddleware(session_factory=async_session))
+    dp.include_router(create_invite_router())
     dp.include_router(create_router())
     return dp

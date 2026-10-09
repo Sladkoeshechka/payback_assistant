@@ -41,6 +41,13 @@ class InvitesRepo:
             )
         )
 
+    async def get_by_id(self, id: int) -> Invite | None:
+        return await self._session.scalar(
+            select(Invite).where(
+                Invite.id == id,
+            )
+        )
+
     async def list_active_for_creator(self, creator_id: int, now: datetime) -> list[Invite]:
         result = await self._session.scalars(
             select(Invite)
