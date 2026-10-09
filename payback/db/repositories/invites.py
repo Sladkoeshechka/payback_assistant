@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from payback.db.models import Invite, UserRole
@@ -65,6 +67,21 @@ class InvitesRepo:
         invite.used_by_id = user_id
         invite.used_at = used_at
         await self._session.flush()
+
+    async def consume_if_active(self, code: str, user_id: int, used_at: datetime) -> bool:
+        """Consume a code once, even if registration attempts happen concurrently."""
+        result = await self._session.execute(
+            update(Invite)
+            .where(
+                Invite.code == code,
+                Invite.expires_at > used_at,
+                Invite.used_at.is_(None),
+                Invite.revoked_at.is_(None),
+            )
+            .values(used_by_id=user_id, used_at=used_at)
+            .execution_options(synchronize_session=False)
+        )
+        return cast(CursorResult[tuple[Any, ...]], result).rowcount == 1
 
     async def revoke(self, invite: Invite, revoked_at: datetime) -> None:
         invite.revoked_at = revoked_at

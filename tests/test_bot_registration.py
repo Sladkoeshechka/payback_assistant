@@ -1,3 +1,5 @@
+# ruff: noqa: RUF001
+
 from copy import deepcopy
 from typing import Any
 
@@ -80,7 +82,9 @@ async def test_manager_registration(
 
     await dispatcher.feed_raw_update(bot, raw_update)
 
-    assert getattr(telegram_session.methods[-1], "text", None) == "Вы уже зарегистрированы."
+    assert getattr(telegram_session.methods[-1], "text", None) == (
+        "Вы уже зарегистрированы.\nМеню руководителя: /invite, /staff, /pending, /refresh, /help"
+    )
 
     unknown_update = deepcopy(raw_update)
     unknown_update["message"]["from"]["id"] = 10234

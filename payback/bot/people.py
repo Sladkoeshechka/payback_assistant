@@ -2,20 +2,29 @@
 
 # ruff: noqa: RUF001
 
-from datetime import UTC, datetime
+import logging
 
-from aiogram import Bot, F, Router, types
+from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+from payback.bot import texts
 from payback.bot.keyboards import invite_role_keyboard
 from payback.bot.states import EmployeeRegistration, OwnerRegistration
 from payback.config import Settings
 from payback.db.models.enums import UserRole
 from payback.db.repositories import UsersRepo
-from payback.db.repositories.invites import InvitesRepo
-from payback.services.people import ManagerRequiredError, PeopleService
+from payback.services.people import (
+    AlreadyRegisteredError,
+    InvitedRegistration,
+    InviteUnavailableError,
+    ManagerRequiredError,
+    PeopleService,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def create_router() -> Router:
@@ -27,15 +36,26 @@ def create_router() -> Router:
     ) -> None:
         if message.from_user is None:
             return
-        if message.from_user.id == settings.owner_telegram_id:
-            manager = await users_repo.get_by_telegram_id(telegram_id=message.from_user.id)
-            if manager is None:
-                await message.answer("Введите имя и фамилию.")
-                await state.set_state(OwnerRegistration.waiting_for_name)
-            else:
-                await message.answer("Вы уже зарегистрированы.")
-        else:
-            await message.answer("Вы не владелец, приглашение сотрудников только по ссылке!")
+        logger.debug(
+            "received start command",
+            extra={
+                "telegram_user_id": message.from_user.id,
+                "telegram_chat_id": message.chat.id,
+            },
+        )
+        user = await users_repo.get_by_telegram_id(message.from_user.id)
+        if user is not None:
+            await state.clear()
+            if not user.is_active:
+                await message.answer(texts.INACTIVE_USER)
+                return
+            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(user.role)}")
+            return
+        if message.from_user.id != settings.owner_telegram_id:
+            await message.answer(texts.UNKNOWN_START)
+            return
+        await message.answer(texts.ASK_NAME)
+        await state.set_state(OwnerRegistration.waiting_for_name)
 
     @router.message(OwnerRegistration.waiting_for_name)
     async def complete_registration(
@@ -91,91 +111,97 @@ def create_router() -> Router:
 
 
 def create_invite_router() -> Router:
+    """Create handlers for entering and completing invitation-based registration."""
     router = Router()
 
     @router.message(CommandStart(deep_link=True))
-    async def cmd_start(
-        message: types.Message,
-        state: FSMContext,
-        command: CommandObject,
-        invites_repo: InvitesRepo,
-    ) -> None:
-        code = command.args
-        if code is None:
-            await message.answer("Эта ссылка невалидна.")
-            return
-        now = datetime.now(UTC)
-
-        invite = await invites_repo.get_active_by_code(code=code, now=now)
-
-        if invite is None:
-            await message.answer("Эта ссылка невалидна.")
-            return
-
-        await state.update_data(invite_code=code)
-
-        await message.answer(
-            f"Инвайт подтвержден! Ваша роль: {invite.role.value}. Введите ваше имя:"
-        )
-        await state.set_state(EmployeeRegistration.waiting_for_name)
-
-    @router.message(EmployeeRegistration.waiting_for_name)
-    async def complete_registration(
+    async def start_from_invite(
         message: Message,
         state: FSMContext,
+        command: CommandObject,
+        people: PeopleService,
         users_repo: UsersRepo,
-        invites_repo: InvitesRepo,
+    ) -> None:
+        if message.from_user is None or command.args is None:
+            await message.answer(texts.INVALID_INVITE)
+            return
+        existing_user = await users_repo.get_by_telegram_id(message.from_user.id)
+        if existing_user is not None:
+            await state.clear()
+            if not existing_user.is_active:
+                await message.answer(texts.INACTIVE_USER)
+                return
+            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(existing_user.role)}")
+            return
+        try:
+            invite = await people.start_invited_registration(message.from_user.id, command.args)
+        except AlreadyRegisteredError:
+            await state.clear()
+            await message.answer(texts.ALREADY_REGISTERED)
+            return
+        except InviteUnavailableError:
+            await state.clear()
+            await message.answer(texts.INVALID_INVITE)
+            return
+
+        await state.set_state(EmployeeRegistration.waiting_for_name)
+        await state.update_data(invite_code=invite.code)
+        await message.answer(texts.ASK_NAME)
+
+    @router.message(EmployeeRegistration.waiting_for_name)
+    async def complete_invited_registration(
+        message: Message,
+        state: FSMContext,
+        people: PeopleService,
         bot: Bot,
     ) -> None:
         if message.from_user is None or message.text is None:
             return
-        name = message.text.split(maxsplit=1)
-        if len(name) != 2:
-            await message.answer("Введите имя и фамилию через пробел.")
-            return
-
         invite_code = (await state.get_data()).get("invite_code")
         if not isinstance(invite_code, str):
             await state.clear()
-            await message.answer("Эта ссылка невалидна.")
+            await message.answer(texts.INVALID_INVITE)
             return
-        now = datetime.now(UTC)
-        invite = await invites_repo.get_active_by_code(code=invite_code, now=now)
-        if invite is None:
+        try:
+            registration = await people.register_invited_user(
+                message.from_user.id, message.text, invite_code
+            )
+        except AlreadyRegisteredError:
             await state.clear()
-            await message.answer("Эта ссылка невалидна.")
+            await message.answer(texts.ALREADY_REGISTERED)
             return
-
-        user = await users_repo.create(
-            telegram_id=message.from_user.id,
-            first_name=name[0],
-            last_name=name[1],
-            role=invite.role,
-            manager_id=invite.created_by_id if invite.role == UserRole.EMPLOYEE else None,
-        )
-
-        await invites_repo.consume(invite=invite, user_id=user.id, used_at=now)
-
-        # TODO: add menu
-        if user.role == UserRole.EMPLOYEE:
-            await message.answer("Добро пожаловать! Вы зарегистрированы как сотрудник.")
-        else:
-            await message.answer("Добро пожаловать! Вы зарегистрированы как руководитель.")
-
-        creator = await users_repo.get_by_id(invite.created_by_id)
-
-        if creator:
-            try:
-                full_name = f"{name[0]} {name[1]}"
-                notification = (
-                    f"🔔 По вашей ссылке ({invite.code}) "
-                    "зарегистрировался новый пользователь:\n"
-                    f"👤 {full_name} (Роль: {invite.role.value})"
-                )
-                await bot.send_message(chat_id=creator.telegram_id, text=notification)
-            except Exception as error:
-                print(f"Could not notify creator {creator.telegram_id}: {error}")
+        except InviteUnavailableError:
+            await state.clear()
+            await message.answer(texts.INVALID_INVITE)
+            return
+        except ValueError:
+            await message.answer(texts.ASK_NAME_WITH_SPACE)
+            return
 
         await state.clear()
+        welcome = (
+            texts.WELCOME_MANAGER
+            if registration.user.role == UserRole.MANAGER
+            else texts.WELCOME_EMPLOYEE
+        )
+        await message.answer(f"{welcome}\n{texts.menu(registration.user.role)}")
+        await _notify_inviter(bot, registration)
 
     return router
+
+
+async def _notify_inviter(bot: Bot, registration: InvitedRegistration) -> None:
+    """Notify the invitation creator without failing an otherwise valid registration."""
+    try:
+        await bot.send_message(
+            chat_id=registration.inviter.telegram_id,
+            text=texts.INVITER_NOTIFICATION.format(
+                full_name=f"{registration.user.first_name} {registration.user.last_name}",
+                role=texts.role_name(registration.user.role),
+            ),
+        )
+    except TelegramAPIError:
+        logger.warning(
+            "could not notify invitation creator",
+            extra={"telegram_user_id": registration.inviter.telegram_id},
+        )
