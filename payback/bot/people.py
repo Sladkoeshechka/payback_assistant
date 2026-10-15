@@ -83,7 +83,7 @@ def create_router() -> Router:
         try:
             await people.verify_manager(message.from_user.id)
         except ManagerRequiredError:
-            await message.answer("Эта команда доступна только руководителям.")
+            await message.answer(texts.MANAGER_ONLY)
             return
         await message.answer("Кого вы хотите пригласить?", reply_markup=invite_role_keyboard())
 
@@ -95,7 +95,7 @@ def create_router() -> Router:
         try:
             invite = await people.create_invite(callback.from_user.id, role)
         except ManagerRequiredError:
-            await callback.answer("Эта команда доступна только руководителям.", show_alert=True)
+            await callback.answer(texts.MANAGER_ONLY, show_alert=True)
             return
 
         me = await bot.get_me()

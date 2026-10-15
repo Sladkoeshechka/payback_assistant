@@ -14,6 +14,11 @@ class UsersRepo:
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
         return await self._session.scalar(select(User).where(User.telegram_id == telegram_id))
 
+    async def get_by_planfix_user_id(self, planfix_user_id: int) -> User | None:
+        return await self._session.scalar(
+            select(User).where(User.planfix_user_id == planfix_user_id)
+        )
+
     async def create(
         self,
         *,

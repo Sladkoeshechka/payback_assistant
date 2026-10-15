@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from payback.db.models import Expense, ExpenseStatus
+from payback.db.models import Expense, ExpenseStatus, User
 
 
 class ExpensesRepo:
@@ -75,3 +76,26 @@ class ExpensesRepo:
     async def set_status(self, expense: Expense, status: ExpenseStatus) -> None:
         expense.status = status
         await self._session.flush()
+
+    async def list_for_employee_since(self, employee_id: int, since: datetime) -> list[Expense]:
+        """Return an employee's expenses created at or after ``since``, newest first."""
+        result = await self._session.scalars(
+            select(Expense)
+            .where(Expense.employee_id == employee_id, Expense.created_at >= since)
+            .order_by(Expense.created_at.desc(), Expense.id.desc())
+        )
+        return list(result)
+
+    async def list_pending_for_manager(self, manager_id: int) -> list[Expense]:
+        """Return subordinates' expenses waiting for this manager's decision."""
+        result = await self._session.scalars(
+            select(Expense)
+            .join(User, Expense.employee_id == User.id)
+            .where(
+                User.manager_id == manager_id,
+                Expense.status == ExpenseStatus.PENDING,
+            )
+            .options(selectinload(Expense.employee))
+            .order_by(Expense.created_at.asc(), Expense.id.asc())
+        )
+        return list(result)

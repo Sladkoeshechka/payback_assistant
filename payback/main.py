@@ -19,6 +19,8 @@ from payback.config import Settings, get_settings
 from payback.db.base import Base
 from payback.db.session import build_engine
 from payback.logging_setup import configure_logging, redact
+from payback.planfix.client import PlanfixClient
+from payback.planfix.directories import DirectoryCache
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +81,14 @@ async def main() -> int:
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     bot = create_bot(settings)
-    dp = create_dispatcher(settings, session_factory)
+    planfix = PlanfixClient(settings.planfix)
+    directory_cache = DirectoryCache(planfix)
+    dp = create_dispatcher(
+        settings,
+        session_factory,
+        planfix=planfix,
+        directory_cache=directory_cache,
+    )
 
     try:
         me = await bot.get_me()
@@ -97,6 +106,7 @@ async def main() -> int:
         await dp.start_polling(bot)
     finally:
         # Корректное закрытие ресурсов при остановке (Ctrl+C / docker stop)
+        await planfix.aclose()
         await bot.session.close()
         logger.info("Бот остановлен")
 

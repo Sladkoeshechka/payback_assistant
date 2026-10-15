@@ -15,12 +15,28 @@ class ManagerRequiredError(PermissionError):
     """The requested operation requires an active local manager."""
 
 
+class EmployeeRequiredError(PermissionError):
+    """The requested operation requires an active local employee."""
+
+
 class InviteUnavailableError(ValueError):
     """An invitation is missing, expired, revoked, or already consumed."""
 
 
 class AlreadyRegisteredError(ValueError):
     """The Telegram account already belongs to a local user."""
+
+
+class StaffMemberNotFoundError(LookupError):
+    """A staff action targeted a user the manager cannot manage."""
+
+
+class InviteNotFoundError(LookupError):
+    """A staff action targeted an invitation the manager does not own."""
+
+
+class PlanfixLinkConflictError(ValueError):
+    """Another local user already claims this Planfix account."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +46,15 @@ class InvitedRegistration:
     user: User
     invite: Invite
     inviter: User
+
+
+@dataclass(frozen=True, slots=True)
+class StaffOverview:
+    """Manager-facing snapshot for the ``/staff`` screen."""
+
+    manager: User
+    subordinates: tuple[User, ...]
+    invites: tuple[Invite, ...]
 
 
 class PeopleService:
@@ -84,11 +109,66 @@ class PeopleService:
             raise InviteUnavailableError("invite was consumed concurrently")
         return InvitedRegistration(user=user, invite=invite, inviter=inviter)
 
+    async def get_staff_overview(self, manager_telegram_id: int) -> StaffOverview:
+        """Return subordinates and unused invites owned by this manager."""
+        manager = await self.verify_manager(manager_telegram_id)
+        subordinates = await self._users.list_active_subordinates(manager.id)
+        invites = await self._invites.list_active_for_creator(manager.id, datetime.now(UTC))
+        return StaffOverview(
+            manager=manager,
+            subordinates=tuple(subordinates),
+            invites=tuple(invites),
+        )
+
+    async def revoke_invite(self, manager_telegram_id: int, invite_id: int) -> Invite:
+        """Revoke an unused invitation created by this manager."""
+        manager = await self.verify_manager(manager_telegram_id)
+        invite = await self._invites.get_by_id(invite_id)
+        if (
+            invite is None
+            or invite.created_by_id != manager.id
+            or invite.used_at is not None
+            or invite.revoked_at is not None
+        ):
+            raise InviteNotFoundError("invite is not available to revoke")
+        await self._invites.revoke(invite, datetime.now(UTC))
+        return invite
+
+    async def deactivate_subordinate(self, manager_telegram_id: int, employee_id: int) -> User:
+        """Deactivate an active employee who reports to this manager."""
+        manager = await self.verify_manager(manager_telegram_id)
+        employee = await self._users.get_by_id(employee_id)
+        if (
+            employee is None
+            or employee.manager_id != manager.id
+            or employee.role != UserRole.EMPLOYEE
+            or not employee.is_active
+        ):
+            raise StaffMemberNotFoundError("subordinate is not available to deactivate")
+        await self._users.set_active(employee, False)
+        return employee
+
+    async def link_planfix_user(self, manager_telegram_id: int, planfix_user_id: int) -> User:
+        """Bind the manager's local account to a Planfix user id."""
+        manager = await self.verify_manager(manager_telegram_id)
+        existing = await self._users.get_by_planfix_user_id(planfix_user_id)
+        if existing is not None and existing.id != manager.id:
+            raise PlanfixLinkConflictError("planfix user already linked")
+        await self._users.link_planfix_user(manager, planfix_user_id)
+        return manager
+
     async def verify_manager(self, telegram_id: int) -> User:
         """Return the active manager identified by a Telegram ID."""
         user = await self._users.get_by_telegram_id(telegram_id)
         if user is None or not user.is_active or user.role != UserRole.MANAGER:
             raise ManagerRequiredError("active manager required")
+        return user
+
+    async def verify_employee(self, telegram_id: int) -> User:
+        """Return the active employee identified by a Telegram ID."""
+        user = await self._users.get_by_telegram_id(telegram_id)
+        if user is None or not user.is_active or user.role != UserRole.EMPLOYEE:
+            raise EmployeeRequiredError("active employee required")
         return user
 
 
@@ -101,8 +181,13 @@ def _split_name(value: str) -> tuple[str, str]:
 
 __all__ = [
     "AlreadyRegisteredError",
+    "EmployeeRequiredError",
+    "InviteNotFoundError",
     "InviteUnavailableError",
     "InvitedRegistration",
     "ManagerRequiredError",
     "PeopleService",
+    "PlanfixLinkConflictError",
+    "StaffMemberNotFoundError",
+    "StaffOverview",
 ]

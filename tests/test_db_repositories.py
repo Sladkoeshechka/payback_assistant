@@ -205,3 +205,51 @@ async def test_expenses_without_fiscal_data_do_not_conflict(session: AsyncSessio
     )
 
     assert first.id != second.id
+
+
+async def test_expenses_list_my_and_pending_for_manager(session: AsyncSession) -> None:
+    users = UsersRepo(session)
+    expenses = ExpensesRepo(session)
+    manager = await users.create(
+        telegram_id=1000,
+        first_name="Grace",
+        last_name="Hopper",
+        role=UserRole.MANAGER,
+    )
+    employee = await users.create(
+        telegram_id=1001,
+        first_name="Ada",
+        last_name="Lovelace",
+        role=UserRole.EMPLOYEE,
+        manager_id=manager.id,
+    )
+    other = await users.create(
+        telegram_id=1002,
+        first_name="Other",
+        last_name="Employee",
+        role=UserRole.EMPLOYEE,
+        manager_id=manager.id,
+    )
+
+    pending = await expenses.create_pending_submission(
+        employee_id=employee.id,
+        amount=Decimal("10.00"),
+        purchase_date=date(2026, 9, 30),
+        category_id=7,
+        category_name="Materials",
+        no_receipt=True,
+    )
+    await expenses.set_status(pending, ExpenseStatus.PENDING)
+    approved = await expenses.create_pending_submission(
+        employee_id=other.id,
+        amount=Decimal("20.00"),
+        purchase_date=date(2026, 9, 29),
+        category_id=7,
+        category_name="Materials",
+        no_receipt=True,
+    )
+    await expenses.set_status(approved, ExpenseStatus.APPROVED)
+
+    since = datetime.now(UTC) - timedelta(days=30)
+    assert await expenses.list_for_employee_since(employee.id, since) == [pending]
+    assert await expenses.list_pending_for_manager(manager.id) == [pending]

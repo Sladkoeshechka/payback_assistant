@@ -5,8 +5,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from payback.db.repositories import UsersRepo
-from payback.db.repositories.invites import InvitesRepo
+from payback.db.repositories import ExpensesRepo, InvitesRepo, UsersRepo
 from payback.services.people import PeopleService
 
 
@@ -23,8 +22,10 @@ class DbRepositoryMiddleware(BaseMiddleware):
         async with self.session_factory() as session:
             users_repo = UsersRepo(session)
             invites_repo = InvitesRepo(session)
+            expenses_repo = ExpensesRepo(session)
             data["users_repo"] = users_repo
             data["invites_repo"] = invites_repo
+            data["expenses_repo"] = expenses_repo
             data["people"] = PeopleService(users_repo, invites_repo)
             data["session"] = session
             try:

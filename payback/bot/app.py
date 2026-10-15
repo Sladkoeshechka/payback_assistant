@@ -5,9 +5,11 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from payback.bot import commands, people, staff
 from payback.bot.middlewares import DbRepositoryMiddleware
-from payback.bot.people import create_invite_router, create_router
+from payback.bot.staff import PlanfixUsersPort
 from payback.config import Settings
+from payback.planfix.directories import DirectoryCache
 
 
 def create_bot(settings: Settings) -> Bot:
@@ -21,11 +23,22 @@ def create_bot(settings: Settings) -> Bot:
 
 
 def create_dispatcher(
-    settings: Settings, async_session: async_sessionmaker[AsyncSession]
+    settings: Settings,
+    async_session: async_sessionmaker[AsyncSession],
+    *,
+    planfix: PlanfixUsersPort | None = None,
+    directory_cache: DirectoryCache | None = None,
 ) -> Dispatcher:
-    dp = Dispatcher(storage=MemoryStorage(), settings=settings)
+    dp = Dispatcher(
+        storage=MemoryStorage(),
+        settings=settings,
+        planfix=planfix,
+        directory_cache=directory_cache,
+    )
     dp.message.middleware(DbRepositoryMiddleware(session_factory=async_session))
     dp.callback_query.middleware(DbRepositoryMiddleware(session_factory=async_session))
-    dp.include_router(create_invite_router())
-    dp.include_router(create_router())
+    dp.include_router(people.create_invite_router())
+    dp.include_router(people.create_router())
+    dp.include_router(staff.create_router())
+    dp.include_router(commands.create_router())
     return dp
