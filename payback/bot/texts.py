@@ -31,6 +31,13 @@ NO_PENDING = "Нет заявок, ожидающих вашего решени�
 INVITE_REVOKED = "Приглашение отозвано."
 EMPLOYEE_DEACTIVATED = "Сотрудник {full_name} отключён."
 CHOOSE_PLANFIX_USER = "Выберите своего пользователя в ПланФиксе:"
+INVITE_PROMPT = "Кого вы хотите пригласить?"
+INVITE_CREATED = "Приглашение создано: {link}\nОно действует 72 часа и используется один раз."
+OWNER_REGISTERED = "Готово!"
+GENERIC_ERROR = "Произошла ошибка. Попробуйте ещё раз позже."
+DEV_AS_USAGE = "Использование: /as employee или /as manager"
+DEV_AS_NEED_REGISTER = "Сначала зарегистрируйтесь через /start."
+DEV_AS_SWITCHED = "Роль переключена: {role}.\n{menu}"
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",
@@ -55,25 +62,29 @@ def role_name(role: str) -> str:
     return "руководитель" if role == UserRole.MANAGER else "сотрудник"
 
 
-def help_text(role: UserRole | None) -> str:
+def help_text(role: UserRole | None, *, dev_mode: bool = False) -> str:
     """Return role-aware command help."""
     if role == UserRole.MANAGER:
-        return (
-            "Справка руководителя:\n"
-            "/invite — создать приглашение\n"
-            "/staff — сотрудники, приглашения, связь с ПланФиксом\n"
-            "/pending — заявки, ждущие решения\n"
-            "/refresh — сбросить кэш справочников\n"
-            "/help — эта справка"
-        )
-    if role == UserRole.EMPLOYEE:
-        return (
-            "Справка сотрудника:\n"
-            "/my — мои заявки за 30 дней\n"
-            "/help — эта справка\n"
-            "Чтобы подать заявку, отправьте фото чека (после подключения подачи)."
-        )
-    return "Сначала зарегистрируйтесь через /start или по приглашению."
+        lines = [
+            "Справка руководителя:",
+            "/invite — создать приглашение",
+            "/staff — сотрудники, приглашения, связь с ПланФиксом",
+            "/pending — заявки, ждущие решения",
+            "/refresh — сбросить кэш справочников",
+            "/help — эта справка",
+        ]
+    elif role == UserRole.EMPLOYEE:
+        lines = [
+            "Справка сотрудника:",
+            "/my — мои заявки за 30 дней",
+            "/help — эта справка",
+            "Чтобы подать заявку, отправьте фото чека (после подключения подачи).",
+        ]
+    else:
+        return "Сначала зарегистрируйтесь через /start или по приглашению."
+    if dev_mode:
+        lines.append("/as employee|manager — сменить роль (только DEV_MODE)")
+    return "\n".join(lines)
 
 
 def full_name(user: User) -> str:
@@ -160,15 +171,22 @@ __all__ = [
     "ASK_NAME",
     "ASK_NAME_WITH_SPACE",
     "CHOOSE_PLANFIX_USER",
+    "DEV_AS_NEED_REGISTER",
+    "DEV_AS_SWITCHED",
+    "DEV_AS_USAGE",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
+    "GENERIC_ERROR",
     "INACTIVE_USER",
     "INVALID_INVITE",
     "INVITER_NOTIFICATION",
+    "INVITE_CREATED",
+    "INVITE_PROMPT",
     "INVITE_REVOKED",
     "MANAGER_ONLY",
     "NO_EXPENSES",
     "NO_PENDING",
+    "OWNER_REGISTERED",
     "PLANFIX_LINKED",
     "PLANFIX_LINK_CONFLICT",
     "PLANFIX_UNAVAILABLE",

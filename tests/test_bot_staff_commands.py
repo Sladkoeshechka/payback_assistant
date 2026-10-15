@@ -183,9 +183,7 @@ async def test_employee_cannot_use_manager_commands(
         )
 
 
-async def _staff_fixture(
-    session: AsyncSession, settings: Settings
-) -> tuple[User, User, Invite]:
+async def _staff_fixture(session: AsyncSession, settings: Settings) -> tuple[User, User, Invite]:
     users = UsersRepo(session)
     manager = await users.create(
         telegram_id=settings.owner_telegram_id,

@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from payback.bot import commands, people, staff
-from payback.bot.middlewares import DbRepositoryMiddleware
+from payback.bot.middlewares import DbRepositoryMiddleware, ErrorHandlingMiddleware
 from payback.bot.staff import PlanfixUsersPort
 from payback.config import Settings
 from payback.planfix.directories import DirectoryCache
@@ -35,6 +35,9 @@ def create_dispatcher(
         planfix=planfix,
         directory_cache=directory_cache,
     )
+    # First registered = outermost: errors wrap the DB session middleware.
+    dp.message.middleware(ErrorHandlingMiddleware())
+    dp.callback_query.middleware(ErrorHandlingMiddleware())
     dp.message.middleware(DbRepositoryMiddleware(session_factory=async_session))
     dp.callback_query.middleware(DbRepositoryMiddleware(session_factory=async_session))
     dp.include_router(people.create_invite_router())

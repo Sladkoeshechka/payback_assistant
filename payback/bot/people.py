@@ -1,7 +1,5 @@
 """Telegram handlers for registration and invitations."""
 
-# ruff: noqa: RUF001
-
 import logging
 
 from aiogram import Bot, F, Router
@@ -14,6 +12,7 @@ from payback.bot import texts
 from payback.bot.keyboards import invite_role_keyboard
 from payback.bot.states import EmployeeRegistration, OwnerRegistration
 from payback.config import Settings
+from payback.db.models import User
 from payback.db.models.enums import UserRole
 from payback.db.repositories import UsersRepo
 from payback.services.people import (
@@ -32,7 +31,10 @@ def create_router() -> Router:
 
     @router.message(Command("start"))
     async def cmd_start(
-        message: Message, state: FSMContext, settings: Settings, users_repo: UsersRepo
+        message: Message,
+        state: FSMContext,
+        settings: Settings,
+        user: User | None,
     ) -> None:
         if message.from_user is None:
             return
@@ -43,12 +45,8 @@ def create_router() -> Router:
                 "telegram_chat_id": message.chat.id,
             },
         )
-        user = await users_repo.get_by_telegram_id(message.from_user.id)
         if user is not None:
             await state.clear()
-            if not user.is_active:
-                await message.answer(texts.INACTIVE_USER)
-                return
             await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(user.role)}")
             return
         if message.from_user.id != settings.owner_telegram_id:
@@ -63,17 +61,21 @@ def create_router() -> Router:
     ) -> None:
         if message.from_user is None or message.text is None:
             return
-        name = message.text.split(maxsplit=1)
-        if len(name) != 2:
-            await message.answer("Введите имя и фамилию через пробел.")
+        try:
+            first_name, last_name = message.text.split(maxsplit=1)
+        except ValueError:
+            await message.answer(texts.ASK_NAME_WITH_SPACE)
             return
-        await users_repo.create(
+        if not first_name or not last_name:
+            await message.answer(texts.ASK_NAME_WITH_SPACE)
+            return
+        user = await users_repo.create(
             telegram_id=message.from_user.id,
-            first_name=name[0],
-            last_name=name[1],
+            first_name=first_name,
+            last_name=last_name,
             role=UserRole.MANAGER,
         )
-        await message.answer("Готово!")
+        await message.answer(f"{texts.OWNER_REGISTERED}\n{texts.menu(user.role)}")
         await state.clear()
 
     @router.message(Command("invite"))
@@ -85,11 +87,13 @@ def create_router() -> Router:
         except ManagerRequiredError:
             await message.answer(texts.MANAGER_ONLY)
             return
-        await message.answer("Кого вы хотите пригласить?", reply_markup=invite_role_keyboard())
+        await message.answer(texts.INVITE_PROMPT, reply_markup=invite_role_keyboard())
 
     @router.callback_query(F.data.in_({"invite:employee", "invite:manager"}))
     async def choose_invite_role(callback: CallbackQuery, people: PeopleService, bot: Bot) -> None:
-        if callback.data is None or callback.message is None or callback.from_user is None:
+        if callback.data is None or callback.from_user is None:
+            return
+        if not isinstance(callback.message, Message):
             return
         role = UserRole(callback.data.rsplit(":", 1)[1])
         try:
@@ -102,9 +106,7 @@ def create_router() -> Router:
         if me.username is None:
             raise RuntimeError("Telegram bot must have a username to create invitation links")
         link = f"https://t.me/{me.username}?start={invite.code}"
-        await callback.message.answer(
-            f"Приглашение создано: {link}\nОно действует 72 часа и используется один раз."
-        )
+        await callback.message.answer(texts.INVITE_CREATED.format(link=link))
         await callback.answer()
 
     return router
@@ -120,18 +122,14 @@ def create_invite_router() -> Router:
         state: FSMContext,
         command: CommandObject,
         people: PeopleService,
-        users_repo: UsersRepo,
+        user: User | None,
     ) -> None:
         if message.from_user is None or command.args is None:
             await message.answer(texts.INVALID_INVITE)
             return
-        existing_user = await users_repo.get_by_telegram_id(message.from_user.id)
-        if existing_user is not None:
+        if user is not None:
             await state.clear()
-            if not existing_user.is_active:
-                await message.answer(texts.INACTIVE_USER)
-                return
-            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(existing_user.role)}")
+            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(user.role)}")
             return
         try:
             invite = await people.start_invited_registration(message.from_user.id, command.args)
@@ -196,7 +194,7 @@ async def _notify_inviter(bot: Bot, registration: InvitedRegistration) -> None:
         await bot.send_message(
             chat_id=registration.inviter.telegram_id,
             text=texts.INVITER_NOTIFICATION.format(
-                full_name=f"{registration.user.first_name} {registration.user.last_name}",
+                full_name=texts.full_name(registration.user),
                 role=texts.role_name(registration.user.role),
             ),
         )

@@ -78,7 +78,9 @@ async def test_manager_registration(
 
     await dispatcher.feed_raw_update(bot, new_update)
 
-    assert getattr(telegram_session.methods[-1], "text", None) == "Готово!"
+    assert getattr(telegram_session.methods[-1], "text", None) == (
+        "Готово!\nМеню руководителя: /invite, /staff, /pending, /refresh, /help"
+    )
 
     await dispatcher.feed_raw_update(bot, raw_update)
 
