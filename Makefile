@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help venv install lint format typecheck test check run
+.PHONY: help venv install lint format typecheck test check run show-db reset-db
 
 VENV ?= .venv
 PY := $(VENV)/bin/python
@@ -32,3 +32,9 @@ check: lint typecheck test ## Everything CI would run
 
 run: ## Start the service
 	$(PY) -m payback
+
+show-db: ## Print users, invites, and expenses from DATABASE_URL
+	$(PY) scripts/show_db.py
+
+reset-db: ## Wipe and recreate all tables (requires confirmation flag)
+	$(PY) scripts/reset_db.py --yes
