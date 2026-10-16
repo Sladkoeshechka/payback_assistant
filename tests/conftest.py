@@ -6,8 +6,8 @@ from typing import Any
 import pytest
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import GetMe, TelegramMethod
-from aiogram.types import User
+from aiogram.methods import GetFile, GetMe, TelegramMethod
+from aiogram.types import File, User
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -25,10 +25,16 @@ FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
 class RecordingSession(BaseSession):
     """Fake Telegram transport that records outgoing bot API methods."""
 
-    def __init__(self, *, bot_username: str = "payback_test_bot") -> None:
+    def __init__(
+        self,
+        *,
+        bot_username: str = "payback_test_bot",
+        download_bytes: bytes | None = None,
+    ) -> None:
         super().__init__()
         self.methods: list[TelegramMethod[Any]] = []
         self._bot_username = bot_username
+        self.download_bytes = download_bytes
 
     async def make_request(
         self, bot: Bot, method: TelegramMethod[Any], timeout: int | None = None
@@ -36,6 +42,13 @@ class RecordingSession(BaseSession):
         self.methods.append(method)
         if isinstance(method, GetMe):
             return User(id=111, is_bot=True, first_name="Payback", username=self._bot_username)
+        if isinstance(method, GetFile):
+            return File(
+                file_id=method.file_id,
+                file_unique_id="unique",
+                file_size=len(self.download_bytes or b""),
+                file_path="photos/test.jpg",
+            )
         return True
 
     async def stream_content(
@@ -46,6 +59,9 @@ class RecordingSession(BaseSession):
         chunk_size: int = 65536,
         raise_for_status: bool = True,
     ) -> AsyncGenerator[bytes, None]:
+        if self.download_bytes is not None:
+            yield self.download_bytes
+            return
         if False:
             yield b""
 

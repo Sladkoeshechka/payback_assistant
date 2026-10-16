@@ -10,7 +10,6 @@ from payback.config import Settings
 from payback.db.models import ExpenseStatus, User, UserRole
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
-from payback.planfix.exceptions import PlanfixError
 from payback.services.draft import SubmissionDraft
 from payback.services.expense_card import custom_field_data_for_draft, task_name
 from payback.services.fakes import FakeNotifier, FakePlanfix
@@ -122,13 +121,13 @@ async def test_resume_after_planfix_step_failure(
     service = _service(session, failing, notifier)
     draft = _draft()
 
-    with pytest.raises(PlanfixError):
-        await service.submit(draft, employee=employee, manager=manager)
+    partial = await service.submit(draft, employee=employee, manager=manager)
     await session.commit()
 
     expenses = ExpensesRepo(session)
     existing = await expenses.get_by_fiscal_data("9282440300671549", "12345", "67890")
     assert existing is not None
+    assert existing.id == partial.id
     assert existing.status is ExpenseStatus.PENDING_SUBMISSION
 
     if fail_on == "create_task":
@@ -187,6 +186,8 @@ async def test_duplicate_fiscal_receipt_is_rejected(
 async def test_expense_card_payload_and_task_name(env: dict[str, str]) -> None:
     settings = Settings()
     draft = _draft()
+    assert draft.amount is not None
+    assert draft.category_name is not None
 
     assert (
         task_name(

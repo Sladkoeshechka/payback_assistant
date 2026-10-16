@@ -24,6 +24,8 @@ def custom_field_data_for_draft(
     field_ids: PlanfixFieldIds,
 ) -> list[dict[str, object]]:
     """Serialize a draft into Planfix ``customFieldData``."""
+    if draft.amount is None or draft.purchase_date is None or draft.category_id is None:
+        raise ValueError("submission draft is incomplete")
     values: dict[int, planfix_fields.FieldValue | None] = {
         field_ids.amount: planfix_fields.number(draft.amount),
         field_ids.purchase_date: planfix_fields.date_value(draft.purchase_date),

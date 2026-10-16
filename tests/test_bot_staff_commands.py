@@ -15,17 +15,16 @@ from payback.db.repositories.invites import InvitesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.planfix.directories import DirectoryCache
 from payback.planfix.models import PlanfixUser
+from payback.services.fakes import FakePlanfix
 
 
-class FakePlanfix:
-    def __init__(self, users: list[PlanfixUser] | None = None) -> None:
-        self.users = users or [
+def _staff_planfix() -> FakePlanfix:
+    return FakePlanfix(
+        users=[
             PlanfixUser(id=3, name="Руководитель", last_name="Тест"),
             PlanfixUser(id=7, name="payback", last_name="robot"),
         ]
-
-    async def list_users(self) -> list[PlanfixUser]:
-        return list(self.users)
+    )
 
 
 class _UnusedPlanfixClient:
@@ -42,7 +41,7 @@ async def test_staff_lists_people_and_revokes_invite(
     dispatcher = create_dispatcher(
         settings,
         async_sessionmaker(db_engine, expire_on_commit=False),
-        planfix=FakePlanfix(),
+        planfix=_staff_planfix(),
     )
 
     await dispatcher.feed_raw_update(bot, _message_update(1, manager.telegram_id, "/staff"))
@@ -71,7 +70,7 @@ async def test_staff_deactivates_employee_and_links_planfix(
     dispatcher = create_dispatcher(
         settings,
         async_sessionmaker(db_engine, expire_on_commit=False),
-        planfix=FakePlanfix(),
+        planfix=_staff_planfix(),
     )
 
     await dispatcher.feed_raw_update(

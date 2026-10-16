@@ -85,7 +85,7 @@ async def test_employee_registers_from_invite(
         bot, _message_update(3, employee_telegram_id, f"/start {invite.code}")
     )
     assert getattr(telegram_session.methods[-1], "text", None) == (
-        "Вы уже зарегистрированы.\nМеню сотрудника: /my, /help"
+        "Вы уже зарегистрированы.\nМеню сотрудника: /my, /noreceipt, /help"
     )
 
 

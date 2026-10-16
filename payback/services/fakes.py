@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from payback.db.models import Expense, User
 from payback.planfix.exceptions import PlanfixError
-from payback.planfix.models import PlanfixUser
+from payback.planfix.models import PlanfixDirectory, PlanfixDirectoryEntry, PlanfixUser
 
 _FailOn = str | None
 
@@ -14,6 +14,7 @@ class FakePlanfix:
     """Record Planfix mutations and optionally fail on a named step."""
 
     users: list[PlanfixUser] = field(default_factory=list)
+    directory_entries: dict[int, list[PlanfixDirectoryEntry]] = field(default_factory=dict)
     fail_on: _FailOn = None
     create_calls: int = 0
     upload_calls: int = 0
@@ -62,6 +63,15 @@ class FakePlanfix:
 
     async def list_users(self) -> list[PlanfixUser]:
         return list(self.users)
+
+    async def get_directory(self, directory_id: int) -> PlanfixDirectory:
+        return PlanfixDirectory(id=directory_id, name=f"Directory {directory_id}", title_field_id=1)
+
+    async def list_directory_entries(
+        self, directory_id: int, title_field_id: int
+    ) -> list[PlanfixDirectoryEntry]:
+        del title_field_id
+        return list(self.directory_entries.get(directory_id, []))
 
 
 @dataclass

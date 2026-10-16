@@ -27,7 +27,13 @@ def create_router() -> Router:
     @router.message(Command("help"))
     async def cmd_help(message: Message, settings: Settings, user: User | None) -> None:
         role = user.role if user is not None else None
-        await message.answer(texts.help_text(role, dev_mode=settings.dev_mode))
+        await message.answer(
+            texts.help_text(
+                role,
+                dev_mode=settings.dev_mode,
+                allow_no_receipt=settings.allow_no_receipt,
+            )
+        )
 
     @router.message(Command("refresh"))
     async def cmd_refresh(
@@ -103,7 +109,7 @@ def create_router() -> Router:
         await message.answer(
             texts.DEV_AS_SWITCHED.format(
                 role=texts.role_name(user.role),
-                menu=texts.menu(user.role),
+                menu=texts.menu(user.role, allow_no_receipt=settings.allow_no_receipt),
             )
         )
 

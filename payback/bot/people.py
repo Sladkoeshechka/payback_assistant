@@ -23,6 +23,11 @@ from payback.services.people import (
     PeopleService,
 )
 
+
+def _menu_for(user: User, settings: Settings) -> str:
+    return texts.menu(user.role, allow_no_receipt=settings.allow_no_receipt)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +52,7 @@ def create_router() -> Router:
         )
         if user is not None:
             await state.clear()
-            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(user.role)}")
+            await message.answer(f"{texts.ALREADY_REGISTERED}\n{_menu_for(user, settings)}")
             return
         if message.from_user.id != settings.owner_telegram_id:
             await message.answer(texts.UNKNOWN_START)
@@ -57,7 +62,10 @@ def create_router() -> Router:
 
     @router.message(OwnerRegistration.waiting_for_name)
     async def complete_registration(
-        message: Message, state: FSMContext, users_repo: UsersRepo
+        message: Message,
+        state: FSMContext,
+        users_repo: UsersRepo,
+        settings: Settings,
     ) -> None:
         if message.from_user is None or message.text is None:
             return
@@ -75,7 +83,7 @@ def create_router() -> Router:
             last_name=last_name,
             role=UserRole.MANAGER,
         )
-        await message.answer(f"{texts.OWNER_REGISTERED}\n{texts.menu(user.role)}")
+        await message.answer(f"{texts.OWNER_REGISTERED}\n{_menu_for(user, settings)}")
         await state.clear()
 
     @router.message(Command("invite"))
@@ -123,13 +131,14 @@ def create_invite_router() -> Router:
         command: CommandObject,
         people: PeopleService,
         user: User | None,
+        settings: Settings,
     ) -> None:
         if message.from_user is None or command.args is None:
             await message.answer(texts.INVALID_INVITE)
             return
         if user is not None:
             await state.clear()
-            await message.answer(f"{texts.ALREADY_REGISTERED}\n{texts.menu(user.role)}")
+            await message.answer(f"{texts.ALREADY_REGISTERED}\n{_menu_for(user, settings)}")
             return
         try:
             invite = await people.start_invited_registration(message.from_user.id, command.args)
@@ -152,6 +161,7 @@ def create_invite_router() -> Router:
         state: FSMContext,
         people: PeopleService,
         bot: Bot,
+        settings: Settings,
     ) -> None:
         if message.from_user is None or message.text is None:
             return
@@ -182,7 +192,7 @@ def create_invite_router() -> Router:
             if registration.user.role == UserRole.MANAGER
             else texts.WELCOME_EMPLOYEE
         )
-        await message.answer(f"{welcome}\n{texts.menu(registration.user.role)}")
+        await message.answer(f"{welcome}\n{_menu_for(registration.user, settings)}")
         await _notify_inviter(bot, registration)
 
     return router

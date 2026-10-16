@@ -9,22 +9,32 @@ pretend to start a bot.
 import asyncio
 import logging
 import sys
+from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from payback import __version__
 from payback.bot.app import create_bot, create_dispatcher
+from payback.bot.notifier import TelegramNotifier
 from payback.config import Settings, get_settings
 from payback.db.base import Base
 from payback.db.session import build_engine
 from payback.logging_setup import configure_logging, redact
 from payback.planfix.client import PlanfixClient
 from payback.planfix.directories import DirectoryCache
+from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
+from payback.planfix.schema import validate_planfix_schema
+from payback.services.fakes import FakePlanfix
+from payback.services.ports import PlanfixPort
 
 logger = logging.getLogger(__name__)
 
 EXIT_BAD_CONFIG = 2
+
+# Stable fake directory ids for offline DEV_MODE (no live Planfix).
+_DEV_CATEGORY_DIRECTORY_ID = 9001
+_DEV_DIRECTION_DIRECTORY_ID = 9002
 
 
 def format_config_errors(error: ValidationError) -> str:
@@ -59,6 +69,51 @@ def describe(settings: Settings) -> dict[str, object]:
     }
 
 
+def offline_planfix_stack() -> tuple[FakePlanfix, PlanfixSchema]:
+    """In-memory Planfix stand-in with sample directories for local Telegram tests."""
+    planfix = FakePlanfix(
+        directory_entries={
+            _DEV_CATEGORY_DIRECTORY_ID: [
+                PlanfixDirectoryEntry(key=1, name="Материалы"),
+                PlanfixDirectoryEntry(key=2, name="Транспорт"),
+                PlanfixDirectoryEntry(key=3, name="Прочее"),
+            ],
+            _DEV_DIRECTION_DIRECTORY_ID: [
+                PlanfixDirectoryEntry(key=1, name="Офис"),
+                PlanfixDirectoryEntry(key=2, name="Объект"),
+            ],
+        }
+    )
+    schema = PlanfixSchema(
+        category_directory_id=_DEV_CATEGORY_DIRECTORY_ID,
+        direction_directory_id=_DEV_DIRECTION_DIRECTORY_ID,
+    )
+    return planfix, schema
+
+
+async def connect_planfix(
+    settings: Settings,
+) -> tuple[PlanfixPort, PlanfixSchema, Any | None]:
+    """Return a live Planfix client, or an offline fake when ``DEV_MODE`` allows it.
+
+    The third value is the live ``PlanfixClient`` to close on shutdown, if any.
+    """
+    client = PlanfixClient(settings.planfix)
+    try:
+        schema = await validate_planfix_schema(client, settings.planfix)
+    except Exception:
+        await client.aclose()
+        if not settings.dev_mode:
+            raise
+        logger.warning(
+            "Planfix unavailable; DEV_MODE uses FakePlanfix with sample directories",
+            exc_info=True,
+        )
+        fake, schema = offline_planfix_stack()
+        return fake, schema, None
+    return client, schema, client
+
+
 async def main() -> int:
     try:
         settings = get_settings()
@@ -81,13 +136,22 @@ async def main() -> int:
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     bot = create_bot(settings)
-    planfix = PlanfixClient(settings.planfix)
+    try:
+        planfix, planfix_schema, live_client = await connect_planfix(settings)
+    except Exception:
+        logger.exception("Planfix schema validation failed")
+        await bot.session.close()
+        return 1
+
     directory_cache = DirectoryCache(planfix)
+    notifier = TelegramNotifier(bot)
     dp = create_dispatcher(
         settings,
         session_factory,
         planfix=planfix,
         directory_cache=directory_cache,
+        planfix_schema=planfix_schema,
+        notifier=notifier,
     )
 
     try:
@@ -95,6 +159,9 @@ async def main() -> int:
         logger.info("Бот подключен: @%s (id=%s)", me.username, me.id)
     except Exception:
         logger.exception("He удалось подключиться к Telegram. Проверьте конфигурацию.")
+        if live_client is not None:
+            await live_client.aclose()
+        await bot.session.close()
         return 1
 
     # Ha всякий случай чистим вебхуки перед стартом пуллинга
@@ -106,7 +173,8 @@ async def main() -> int:
         await dp.start_polling(bot)
     finally:
         # Корректное закрытие ресурсов при остановке (Ctrl+C / docker stop)
-        await planfix.aclose()
+        if live_client is not None:
+            await live_client.aclose()
         await bot.session.close()
         logger.info("Бот остановлен")
 

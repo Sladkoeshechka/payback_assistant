@@ -4,11 +4,21 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from time import monotonic
+from typing import Protocol
 
-from payback.planfix.client import PlanfixClient
-from payback.planfix.models import PlanfixDirectoryEntry
+from payback.planfix.models import PlanfixDirectory, PlanfixDirectoryEntry
 
 _DIRECTORY_TTL_SECONDS = 600.0
+
+
+class DirectoryClient(Protocol):
+    """Minimal Planfix surface needed to load directory entries."""
+
+    async def get_directory(self, directory_id: int) -> PlanfixDirectory: ...
+
+    async def list_directory_entries(
+        self, directory_id: int, title_field_id: int
+    ) -> list[PlanfixDirectoryEntry]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +32,7 @@ class DirectoryCache:
 
     def __init__(
         self,
-        client: PlanfixClient,
+        client: DirectoryClient,
         *,
         ttl_seconds: float = _DIRECTORY_TTL_SECONDS,
         clock: Callable[[], float] = monotonic,
@@ -68,4 +78,4 @@ class DirectoryCache:
         return self._clock() - cached.loaded_at < self._ttl_seconds
 
 
-__all__ = ["DirectoryCache"]
+__all__ = ["DirectoryCache", "DirectoryClient"]

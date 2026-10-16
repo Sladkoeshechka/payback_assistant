@@ -45,7 +45,7 @@ async def test_as_switches_role_only_when_dev_mode_enabled(
     await session.refresh(manager)
     assert manager.role.value == UserRole.EMPLOYEE.value
     assert getattr(telegram_session.methods[-1], "text", None) == (
-        "Роль переключена: сотрудник.\nМеню сотрудника: /my, /help"
+        "Роль переключена: сотрудник.\nМеню сотрудника: /my, /noreceipt, /help"
     )
 
     telegram_id = manager.telegram_id

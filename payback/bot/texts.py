@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from payback.db.models import Expense, ExpenseStatus, Invite, User, UserRole
+from payback.services.draft import SubmissionDraft
 from payback.services.people import StaffOverview
 
 ASK_NAME = "Введите имя и фамилию."
@@ -38,6 +39,38 @@ GENERIC_ERROR = "Произошла ошибка. Попробуйте ещё р
 DEV_AS_USAGE = "Использование: /as employee или /as manager"
 DEV_AS_NEED_REGISTER = "Сначала зарегистрируйтесь через /start."
 DEV_AS_SWITCHED = "Роль переключена: {role}.\n{menu}"
+RECOGNIZING_RECEIPT = "Распознаю чек…"
+RECEIPT_RECOGNIZED = "Чек на {amount} от {purchased_at:%d.%m.%Y %H:%M}."
+QR_NOT_FOUND = "Не удалось распознать QR-код на чеке."
+ASK_AMOUNT = "Введите сумму покупки."
+ASK_DATE = "Введите дату покупки в формате ДД.ММ.ГГГГ."
+ASK_CATEGORY = "Выберите категорию расхода:"
+ASK_DIRECTION = "Выберите направление затрат:"
+ASK_COMMENT = "Добавьте комментарий или нажмите «Пропустить»."
+ASK_COMMENT_REQUIRED = "Опишите покупку и почему нет кассового чека."
+ASK_PROOF_PHOTO = "Можно приложить подтверждение (скриншот перевода или поездки)."
+INVALID_AMOUNT = "Не удалось разобрать сумму. Введите число, например 1250,50."
+INVALID_DATE = "Не удалось разобрать дату. Используйте формат ДД.ММ.ГГГГ."
+CATEGORIES_UNAVAILABLE = "Категории не настроены, обратитесь к руководителю"
+SUBMISSION_CANCELLED = "Заявка отменена."
+REPLACE_DRAFT_PROMPT = "Начать новую заявку и отменить текущую?"
+NO_RECEIPT_DISABLED = "Подача без чека отключена."
+NO_MANAGER = "Нельзя подать заявку: у вас не указан руководитель. Обратитесь к администратору."
+SUBMITTED = "Заявка №{task_id} отправлена на согласование."
+SUBMITTED_PENDING_PLANFIX = "Заявка принята, отправим её, как только ПланФикс станет доступен."
+EDIT_PICK = "Что исправить?"
+EDIT_QR_LOCKED = "Сумму и дату, распознанные по QR, изменить нельзя."
+APPROVAL_COMING_SOON = "Согласование будет доступно в следующей версии."
+NO_RECEIPT_BUTTON = "Трата без чека"
+MANAGER_NEW_EXPENSE = (
+    "Новая заявка от {employee}\n"
+    "Сумма: {amount}\n"
+    "Дата: {purchase_date:%d.%m.%Y}\n"
+    "Категория: {category}\n"
+    "Направление: {direction}\n"
+    "Комментарий: {comment}"
+)
+MANAGER_NO_RECEIPT_MARK = "⚠️ Без кассового чека"
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",
@@ -51,10 +84,12 @@ _STATUS_LABELS = {
 }
 
 
-def menu(role: str) -> str:
+def menu(role: str, *, allow_no_receipt: bool = True) -> str:
     """Return the commands currently available to a newly registered role."""
     if role == UserRole.MANAGER:
         return "Меню руководителя: /invite, /staff, /pending, /refresh, /help"
+    if allow_no_receipt:
+        return "Меню сотрудника: /my, /noreceipt, /help"
     return "Меню сотрудника: /my, /help"
 
 
@@ -62,7 +97,12 @@ def role_name(role: str) -> str:
     return "руководитель" if role == UserRole.MANAGER else "сотрудник"
 
 
-def help_text(role: UserRole | None, *, dev_mode: bool = False) -> str:
+def help_text(
+    role: UserRole | None,
+    *,
+    dev_mode: bool = False,
+    allow_no_receipt: bool = True,
+) -> str:
     """Return role-aware command help."""
     if role == UserRole.MANAGER:
         lines = [
@@ -77,9 +117,15 @@ def help_text(role: UserRole | None, *, dev_mode: bool = False) -> str:
         lines = [
             "Справка сотрудника:",
             "/my — мои заявки за 30 дней",
-            "/help — эта справка",
-            "Чтобы подать заявку, отправьте фото чека (после подключения подачи).",
         ]
+        if allow_no_receipt:
+            lines.append("/noreceipt — трата без кассового чека")
+        lines.extend(
+            [
+                "/help — эта справка",
+                "Чтобы подать заявку, отправьте фото чека.",
+            ]
+        )
     else:
         return "Сначала зарегистрируйтесь через /start или по приглашению."
     if dev_mode:
@@ -155,6 +201,53 @@ def pending_expenses(expenses: list[Expense]) -> str:
     return "\n".join(lines)
 
 
+def confirmation_card(draft: SubmissionDraft) -> str:
+    """Render the pre-submit summary from spec §4.2.5."""
+    amount = format_amount(draft.amount) if draft.amount is not None else "—"
+    purchase = draft.purchase_date.strftime("%d.%m.%Y") if draft.purchase_date else "—"
+    category = draft.category_name or "—"
+    direction = draft.direction_name or "—"
+    comment = draft.comment or "—"
+    if draft.no_receipt:
+        receipt = "без кассового чека"
+    elif draft.qr_locked:
+        receipt = "распознан"
+    elif draft.has_image:
+        receipt = "приложен"
+    else:
+        receipt = "нет"
+    return (
+        "Заявка на расход\n"
+        f"Сумма:        {amount}\n"
+        f"Дата:         {purchase}\n"
+        f"Категория:    {category}\n"
+        f"Направление:  {direction}\n"
+        f"Комментарий:  {comment}\n"
+        f"Чек:          {receipt}"
+    )
+
+
+def manager_expense_card(
+    *,
+    employee: User,
+    expense: Expense,
+) -> str:
+    """Caption / body for the manager notification (spec §4.3)."""
+    direction = expense.direction_name or "—"
+    comment = expense.comment or "—"
+    text = MANAGER_NEW_EXPENSE.format(
+        employee=full_name(employee),
+        amount=format_amount(expense.amount),
+        purchase_date=expense.purchase_date,
+        category=expense.category_name,
+        direction=direction,
+        comment=comment,
+    )
+    if expense.no_receipt:
+        text = f"{text}\n{MANAGER_NO_RECEIPT_MARK}"
+    return text
+
+
 def _invite_line(invite: Invite) -> str:
     expires = _as_utc(invite.expires_at)
     return f"{role_name(invite.role)}, до {expires:%d.%m.%Y %H:%M} UTC"
@@ -168,38 +261,65 @@ def _as_utc(value: datetime) -> datetime:
 
 __all__ = [
     "ALREADY_REGISTERED",
+    "APPROVAL_COMING_SOON",
+    "ASK_AMOUNT",
+    "ASK_CATEGORY",
+    "ASK_COMMENT",
+    "ASK_COMMENT_REQUIRED",
+    "ASK_DATE",
+    "ASK_DIRECTION",
     "ASK_NAME",
     "ASK_NAME_WITH_SPACE",
+    "ASK_PROOF_PHOTO",
+    "CATEGORIES_UNAVAILABLE",
     "CHOOSE_PLANFIX_USER",
     "DEV_AS_NEED_REGISTER",
     "DEV_AS_SWITCHED",
     "DEV_AS_USAGE",
+    "EDIT_PICK",
+    "EDIT_QR_LOCKED",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
     "GENERIC_ERROR",
     "INACTIVE_USER",
+    "INVALID_AMOUNT",
+    "INVALID_DATE",
     "INVALID_INVITE",
     "INVITER_NOTIFICATION",
     "INVITE_CREATED",
     "INVITE_PROMPT",
     "INVITE_REVOKED",
+    "MANAGER_NEW_EXPENSE",
+    "MANAGER_NO_RECEIPT_MARK",
     "MANAGER_ONLY",
     "NO_EXPENSES",
+    "NO_MANAGER",
     "NO_PENDING",
+    "NO_RECEIPT_BUTTON",
+    "NO_RECEIPT_DISABLED",
     "OWNER_REGISTERED",
     "PLANFIX_LINKED",
     "PLANFIX_LINK_CONFLICT",
     "PLANFIX_UNAVAILABLE",
     "PLANFIX_USERS_EMPTY",
+    "QR_NOT_FOUND",
+    "RECEIPT_RECOGNIZED",
+    "RECOGNIZING_RECEIPT",
     "REFRESH_DONE",
     "REFRESH_UNAVAILABLE",
+    "REPLACE_DRAFT_PROMPT",
     "STAFF_ACTION_UNAVAILABLE",
+    "SUBMISSION_CANCELLED",
+    "SUBMITTED",
+    "SUBMITTED_PENDING_PLANFIX",
     "UNKNOWN_START",
     "WELCOME_EMPLOYEE",
     "WELCOME_MANAGER",
+    "confirmation_card",
     "format_amount",
     "full_name",
     "help_text",
+    "manager_expense_card",
     "menu",
     "my_expenses",
     "pending_expenses",

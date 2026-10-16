@@ -5,6 +5,7 @@
 from payback.config import PlanfixFieldIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
+from payback.planfix.exceptions import PlanfixError
 from payback.services.draft import SubmissionDraft
 from payback.services.expense_card import (
     custom_field_data_for_expense,
@@ -68,6 +69,13 @@ class SubmissionService:
     ) -> Expense:
         """Persist a new expense from a draft and publish it to Planfix."""
         await self._reject_duplicate(draft)
+        if (
+            draft.amount is None
+            or draft.purchase_date is None
+            or draft.category_id is None
+            or draft.category_name is None
+        ):
+            raise ValueError("submission draft is incomplete")
         expense = await self._expenses.create_pending_submission(
             employee_id=employee.id,
             amount=draft.amount,
@@ -83,7 +91,7 @@ class SubmissionService:
             fp=draft.fp,
             telegram_file_id=draft.telegram_file_id,
         )
-        return await self._publish(
+        return await self._publish_quietly(
             expense,
             employee=employee,
             manager=manager,
@@ -113,7 +121,7 @@ class SubmissionService:
             return expense
         if expense.status is not ExpenseStatus.PENDING_SUBMISSION:
             return expense
-        return await self._publish(
+        return await self._publish_quietly(
             expense,
             employee=employee,
             manager=manager,
@@ -121,6 +129,29 @@ class SubmissionService:
             image_filename=image_filename,
             image_content_type=image_content_type,
         )
+
+    async def _publish_quietly(
+        self,
+        expense: Expense,
+        *,
+        employee: User,
+        manager: User | None,
+        image_bytes: bytes | None,
+        image_filename: str,
+        image_content_type: str,
+    ) -> Expense:
+        """Publish to Planfix; on API failure keep the local row for later resume."""
+        try:
+            return await self._publish(
+                expense,
+                employee=employee,
+                manager=manager,
+                image_bytes=image_bytes,
+                image_filename=image_filename,
+                image_content_type=image_content_type,
+            )
+        except PlanfixError:
+            return expense
 
     async def _publish(
         self,

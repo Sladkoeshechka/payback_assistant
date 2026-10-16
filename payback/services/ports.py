@@ -3,7 +3,7 @@
 from typing import Protocol
 
 from payback.db.models import Expense, User
-from payback.planfix.models import PlanfixUser
+from payback.planfix.models import PlanfixDirectory, PlanfixDirectoryEntry, PlanfixUser
 
 
 class PlanfixPort(Protocol):
@@ -24,6 +24,12 @@ class PlanfixPort(Protocol):
     async def attach_file(self, file_id: int, task_id: int) -> None: ...
 
     async def list_users(self) -> list[PlanfixUser]: ...
+
+    async def get_directory(self, directory_id: int) -> PlanfixDirectory: ...
+
+    async def list_directory_entries(
+        self, directory_id: int, title_field_id: int
+    ) -> list[PlanfixDirectoryEntry]: ...
 
 
 class NotifierPort(Protocol):
