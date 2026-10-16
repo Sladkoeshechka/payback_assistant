@@ -71,15 +71,16 @@ class PlanfixClient:
         *,
         name: str,
         description: str | None,
-        manager_planfix_user_id: int,
+        manager_planfix_user_id: int | None,
         custom_field_data: list[dict[str, object]],
     ) -> int:
         payload: dict[str, object] = {
             "name": name,
             "object": {"id": self._object_id},
-            "assignees": {"users": [{"id": f"user:{manager_planfix_user_id}"}]},
             "customFieldData": custom_field_data,
         }
+        if manager_planfix_user_id is not None:
+            payload["assignees"] = {"users": [{"id": f"user:{manager_planfix_user_id}"}]}
         if description:
             payload["description"] = description
         response = await self._request(

@@ -49,6 +49,28 @@ async def test_create_task_uses_card_shape_and_stable_idempotency_key(
 
 
 @respx.mock
+async def test_create_task_omits_assignees_when_manager_unlinked(
+    planfix_settings: Settings,
+) -> None:
+    route = respx.post("https://example.planfix.ru/rest/task/").mock(
+        return_value=httpx.Response(200, json=load_fixture("task_create"))
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    await client.create_task(
+        7,
+        name="Expense",
+        description=None,
+        manager_planfix_user_id=None,
+        custom_field_data=[],
+    )
+
+    payload = json.loads(route.calls[0].request.content)
+    assert "assignees" not in payload
+    await client.aclose()
+
+
+@respx.mock
 async def test_task_operations_and_202_are_successful(planfix_settings: Settings) -> None:
     task = respx.get("https://example.planfix.ru/rest/task/36").mock(
         return_value=httpx.Response(200, json=load_fixture("task_get_pending"))

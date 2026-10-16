@@ -48,10 +48,13 @@ async def test_as_switches_role_only_when_dev_mode_enabled(
         "Роль переключена: сотрудник.\nМеню сотрудника: /my, /help"
     )
 
-    await dispatcher.feed_raw_update(bot, _message_update(3, manager.telegram_id, "/as manager"))
-    await session.refresh(manager)
-    assert manager.role.value == UserRole.MANAGER.value
-    assert manager.manager_id is None
+    telegram_id = manager.telegram_id
+    await dispatcher.feed_raw_update(bot, _message_update(3, telegram_id, "/as manager"))
+    session.expire_all()
+    restored = await users.get_by_telegram_id(telegram_id)
+    assert restored is not None
+    assert restored.role == UserRole.MANAGER
+    assert restored.manager_id is None
 
 
 async def test_inactive_user_is_blocked_by_middleware(
