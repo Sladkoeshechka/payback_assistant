@@ -3,11 +3,15 @@ from decimal import Decimal
 from pathlib import Path
 
 from aiogram import Bot
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
 from conftest import RecordingSession
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from payback.bot import texts
 from payback.bot.app import create_dispatcher
+from payback.bot.states import ExpenseSubmission
 from payback.config import Settings
 from payback.db.models import Expense, ExpenseStatus, User, UserRole
 from payback.db.repositories.users import UsersRepo
@@ -16,6 +20,7 @@ from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
 from payback.services.fakes import FakeNotifier, FakePlanfix
 
 _RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "valid-receipt.jpg"
+_NO_QR_RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "no-qr.jpg"
 _CATEGORY_DIR = 10
 _DIRECTION_DIR = 20
 
@@ -235,3 +240,116 @@ def _photo_update(update_id: int, user_id: int, *, file_id: str) -> dict[str, ob
             ],
         },
     }
+
+async def test_employee_sends_photo_without_readable_qr(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+    settings = Settings()
+    manager, employee = await _people(session, settings)
+    planfix, cache, schema, notifier = _planfix_stack()
+    telegram_session = RecordingSession(download_bytes=_NO_QR_RECEIPT.read_bytes())
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    dispatcher = create_dispatcher(
+        settings,
+        async_sessionmaker(db_engine, expire_on_commit=False),
+        planfix=planfix,
+        directory_cache=cache,
+        planfix_schema=schema,
+        notifier=notifier,
+    )
+
+    me = await bot.get_me()
+    state = FSMContext(
+        storage=dispatcher.storage,
+        key=StorageKey(
+            bot_id=me.id,
+            chat_id=employee.telegram_id,
+            user_id=employee.telegram_id,
+        ),
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _photo_update(1, employee.telegram_id, file_id="receipt-file")
+    )
+
+    assert any(
+        getattr(method, "text", None) == texts.QR_NOT_FOUND for method in telegram_session.methods
+    )
+
+    await dispatcher.feed_raw_update(bot, _callback_update(2, employee.telegram_id, "sub:manual"))
+
+    assert any(
+        getattr(method, "text", None) == texts.ASK_AMOUNT for method in telegram_session.methods
+    )
+
+    assert await state.get_state() == ExpenseSubmission.manual_amount.state
+
+    await dispatcher.feed_raw_update(bot, _message_update(3, employee.telegram_id, "1250,05"))
+
+    assert any(
+        getattr(method, "text", None) == texts.ASK_DATE for method in telegram_session.methods
+    )
+
+    assert await state.get_state() == ExpenseSubmission.manual_date.state
+
+    await dispatcher.feed_raw_update(bot, _message_update(4, employee.telegram_id, "15.10.2026"))
+
+    assert any(
+        getattr(method, "text", None) == texts.ASK_CATEGORY for method in telegram_session.methods
+    )
+
+    await dispatcher.feed_raw_update(bot, _callback_update(5, employee.telegram_id, "sub:cat:7"))
+
+    assert any(
+        getattr(method, "text", None) == texts.ASK_DIRECTION for method in telegram_session.methods
+    )
+
+    await dispatcher.feed_raw_update(bot, _callback_update(6, employee.telegram_id, "sub:dir:2"))
+
+    assert any(
+        getattr(method, "text", None) == texts.ASK_COMMENT for method in telegram_session.methods
+    )
+
+    assert await state.get_state() == ExpenseSubmission.comment.state
+
+    await dispatcher.feed_raw_update(
+        bot, _callback_update(7, employee.telegram_id, "sub:skip_comment")
+    )
+
+    assert any(
+        getattr(method, "text", None) and "Заявка на расход" in getattr(method, "text", "")
+        for method in telegram_session.methods
+    )
+    assert await state.get_state() == ExpenseSubmission.confirm.state
+
+    await dispatcher.feed_raw_update(bot, _callback_update(8, employee.telegram_id, "sub:send"))
+
+    assert any(
+        getattr(method, "text", None) == texts.SUBMITTED.format(task_id=100)
+        for method in telegram_session.methods
+    )
+    assert await state.get_state() is None
+
+    expense = (await session.scalars(select(Expense))).one()
+    assert expense.status is ExpenseStatus.PENDING
+    assert expense.employee_id == employee.id
+    assert expense.amount == Decimal("1250.05")
+    assert expense.purchase_date == date(2026, 10, 15)
+    assert expense.category_id == 7
+    assert expense.category_name == "Материалы"
+    assert expense.direction_id == 2
+    assert expense.direction_name == "Ленина 5"
+    assert expense.comment is None
+    assert expense.fn is None
+    assert expense.fd is None
+    assert expense.fp is None
+    assert expense.no_receipt is False
+    assert expense.telegram_file_id == "receipt-file"
+    assert expense.planfix_task_id == 100
+    assert expense.planfix_file_id == 1000
+    assert expense.manager_message_id == 5000
+    assert planfix.create_calls == 1
+    assert planfix.upload_calls == 1
+    assert planfix.attach_calls == 1
+    assert len(notifier.messages) == 1
+    assert notifier.messages[0]["manager_id"] == manager.id

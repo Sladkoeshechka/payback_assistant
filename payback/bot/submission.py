@@ -190,7 +190,7 @@ def create_router() -> Router:
         draft.qr_locked = False
         await _save_draft(state, draft)
         await state.set_state(ExpenseSubmission.manual_amount)
-        await callback.answer()
+        # await callback.answer()
         if isinstance(callback.message, Message):
             await callback.message.answer(texts.ASK_AMOUNT)
 
