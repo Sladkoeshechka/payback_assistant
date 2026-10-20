@@ -14,10 +14,12 @@ from payback.bot.app import create_dispatcher
 from payback.bot.states import ExpenseSubmission
 from payback.config import Settings
 from payback.db.models import Expense, ExpenseStatus, User, UserRole
+from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.planfix.directories import DirectoryCache
 from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
 from payback.services.fakes import FakeNotifier, FakePlanfix
+from payback.services.submission import SubmissionService
 
 _RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "valid-receipt.jpg"
 _NO_QR_RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "no-qr.jpg"
@@ -154,93 +156,6 @@ async def test_cancel_clears_draft(
     assert "Заявка отменена." in text
     assert "/my" in text
 
-
-async def _people(session: AsyncSession, settings: Settings) -> tuple[User, User]:
-    users = UsersRepo(session)
-    manager = await users.create(
-        telegram_id=settings.owner_telegram_id,
-        first_name="Grace",
-        last_name="Hopper",
-        role=UserRole.MANAGER,
-    )
-    employee = await users.create(
-        telegram_id=2,
-        first_name="Ada",
-        last_name="Lovelace",
-        role=UserRole.EMPLOYEE,
-        manager_id=manager.id,
-    )
-    await session.commit()
-    return manager, employee
-
-
-def _planfix_stack() -> tuple[FakePlanfix, DirectoryCache, PlanfixSchema, FakeNotifier]:
-    planfix = FakePlanfix(
-        directory_entries={
-            _CATEGORY_DIR: [PlanfixDirectoryEntry(key=7, name="Материалы")],
-            _DIRECTION_DIR: [PlanfixDirectoryEntry(key=2, name="Ленина 5")],
-        }
-    )
-    cache = DirectoryCache(planfix)
-    schema = PlanfixSchema(
-        category_directory_id=_CATEGORY_DIR,
-        direction_directory_id=_DIRECTION_DIR,
-    )
-    return planfix, cache, schema, FakeNotifier()
-
-
-def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object]:
-    message: dict[str, object] = {
-        "message_id": update_id,
-        "date": 1_700_000_000,
-        "chat": {"id": user_id, "type": "private"},
-        "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
-        "text": text,
-    }
-    if text.startswith("/"):
-        message["entities"] = [{"offset": 0, "length": len(text.split()[0]), "type": "bot_command"}]
-    return {"update_id": update_id, "message": message}
-
-
-def _callback_update(update_id: int, user_id: int, data: str) -> dict[str, object]:
-    return {
-        "update_id": update_id,
-        "callback_query": {
-            "id": str(update_id),
-            "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
-            "chat_instance": "test",
-            "data": data,
-            "message": {
-                "message_id": update_id,
-                "date": 1_700_000_000,
-                "chat": {"id": user_id, "type": "private"},
-                "from": {"id": 111, "is_bot": True, "first_name": "Payback"},
-                "text": "…",
-            },
-        },
-    }
-
-
-def _photo_update(update_id: int, user_id: int, *, file_id: str) -> dict[str, object]:
-    return {
-        "update_id": update_id,
-        "message": {
-            "message_id": update_id,
-            "date": 1_700_000_000,
-            "chat": {"id": user_id, "type": "private"},
-            "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
-            "photo": [
-                {
-                    "file_id": file_id,
-                    "file_unique_id": "uid",
-                    "width": 100,
-                    "height": 100,
-                    "file_size": 10,
-                }
-            ],
-        },
-    }
-
 async def test_employee_sends_photo_without_readable_qr(
     env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
 ) -> None:
@@ -353,3 +268,153 @@ async def test_employee_sends_photo_without_readable_qr(
     assert planfix.attach_calls == 1
     assert len(notifier.messages) == 1
     assert notifier.messages[0]["manager_id"] == manager.id
+
+
+async def test_submit_when_planfix_fails_keeps_pending_submission(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+    settings = Settings()
+    manager, employee = await _people(session, settings)
+    planfix, cache, schema, notifier = _planfix_stack()
+    planfix.fail_on = "create_task"
+    telegram_session = RecordingSession(download_bytes=_RECEIPT.read_bytes())
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    dispatcher = create_dispatcher(
+        settings,
+        async_sessionmaker(db_engine, expire_on_commit=False),
+        planfix=planfix,
+        directory_cache=cache,
+        planfix_schema=schema,
+        notifier=notifier,
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _photo_update(1, employee.telegram_id, file_id="receipt-file")
+    )
+    await dispatcher.feed_raw_update(bot, _callback_update(2, employee.telegram_id, "sub:cat:7"))
+    await dispatcher.feed_raw_update(bot, _callback_update(3, employee.telegram_id, "sub:dir:2"))
+    await dispatcher.feed_raw_update(
+        bot, _callback_update(4, employee.telegram_id, "sub:skip_comment")
+    )
+    await dispatcher.feed_raw_update(bot, _callback_update(5, employee.telegram_id, "sub:send"))
+
+    assert any(
+        getattr(method, "text", None) == texts.SUBMITTED_PENDING_PLANFIX
+        for method in telegram_session.methods
+    )
+
+    expense = (await session.scalars(select(Expense))).one()
+    assert expense.status is ExpenseStatus.PENDING_SUBMISSION
+    assert expense.planfix_task_id is None
+    assert expense.manager_message_id is None
+    assert planfix.create_calls == 1
+    assert len(notifier.messages) == 0
+
+    planfix.fail_on = None
+
+    expenses = ExpensesRepo(session)
+    existing = await expenses.get_by_id(expense.id)
+
+    resumed = await SubmissionService(
+        expenses, planfix, notifier, settings.planfix.fields
+    ).resume(
+        existing,
+        employee=employee,
+        manager=manager,
+        image_bytes=telegram_session.download_bytes,
+    )
+    await session.commit()
+
+    assert resumed.status is ExpenseStatus.PENDING
+    assert resumed.planfix_task_id is not None
+    assert resumed.planfix_file_id is not None
+    assert resumed.manager_message_id is not None
+    assert planfix.create_calls == 2
+    assert len(notifier.messages) == 1
+    assert manager.id == notifier.messages[0]["manager_id"]
+
+async def _people(session: AsyncSession, settings: Settings) -> tuple[User, User]:
+    users = UsersRepo(session)
+    manager = await users.create(
+        telegram_id=settings.owner_telegram_id,
+        first_name="Grace",
+        last_name="Hopper",
+        role=UserRole.MANAGER,
+    )
+    employee = await users.create(
+        telegram_id=2,
+        first_name="Ada",
+        last_name="Lovelace",
+        role=UserRole.EMPLOYEE,
+        manager_id=manager.id,
+    )
+    await session.commit()
+    return manager, employee
+
+
+def _planfix_stack() -> tuple[FakePlanfix, DirectoryCache, PlanfixSchema, FakeNotifier]:
+    planfix = FakePlanfix(
+        directory_entries={
+            _CATEGORY_DIR: [PlanfixDirectoryEntry(key=7, name="Материалы")],
+            _DIRECTION_DIR: [PlanfixDirectoryEntry(key=2, name="Ленина 5")],
+        }
+    )
+    cache = DirectoryCache(planfix)
+    schema = PlanfixSchema(
+        category_directory_id=_CATEGORY_DIR,
+        direction_directory_id=_DIRECTION_DIR,
+    )
+    return planfix, cache, schema, FakeNotifier()
+
+
+def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object]:
+    message: dict[str, object] = {
+        "message_id": update_id,
+        "date": 1_700_000_000,
+        "chat": {"id": user_id, "type": "private"},
+        "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
+        "text": text,
+    }
+    if text.startswith("/"):
+        message["entities"] = [{"offset": 0, "length": len(text.split()[0]), "type": "bot_command"}]
+    return {"update_id": update_id, "message": message}
+
+
+def _callback_update(update_id: int, user_id: int, data: str) -> dict[str, object]:
+    return {
+        "update_id": update_id,
+        "callback_query": {
+            "id": str(update_id),
+            "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
+            "chat_instance": "test",
+            "data": data,
+            "message": {
+                "message_id": update_id,
+                "date": 1_700_000_000,
+                "chat": {"id": user_id, "type": "private"},
+                "from": {"id": 111, "is_bot": True, "first_name": "Payback"},
+                "text": "…",
+            },
+        },
+    }
+
+
+def _photo_update(update_id: int, user_id: int, *, file_id: str) -> dict[str, object]:
+    return {
+        "update_id": update_id,
+        "message": {
+            "message_id": update_id,
+            "date": 1_700_000_000,
+            "chat": {"id": user_id, "type": "private"},
+            "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
+            "photo": [
+                {
+                    "file_id": file_id,
+                    "file_unique_id": "uid",
+                    "width": 100,
+                    "height": 100,
+                    "file_size": 10,
+                }
+            ],
+        },
+    }
