@@ -314,6 +314,7 @@ async def test_submit_when_planfix_fails_keeps_pending_submission(
 
     expenses = ExpensesRepo(session)
     existing = await expenses.get_by_id(expense.id)
+    assert existing is not None
 
     resumed = await SubmissionService(
         expenses, planfix, notifier, settings.planfix.fields

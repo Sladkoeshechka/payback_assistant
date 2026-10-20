@@ -149,7 +149,7 @@ def proof_photo_keyboard() -> InlineKeyboardMarkup:
 
 
 def manager_decision_keyboard(expense_id: int) -> InlineKeyboardMarkup:
-    """Placeholder buttons until stage 8 wires approve/reject/question."""
+    """Approve / reject / clarification buttons for a pending expense."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [

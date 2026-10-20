@@ -1,5 +1,6 @@
 """Narrow ports used by submission (and later approval) services."""
 
+from collections.abc import Mapping
 from typing import Protocol
 
 from payback.db.models import Expense, User
@@ -31,6 +32,10 @@ class PlanfixPort(Protocol):
         self, directory_id: int, title_field_id: int
     ) -> list[PlanfixDirectoryEntry]: ...
 
+    async def update_task(self, task_id: int, payload: Mapping[str, object]) -> None: ...
+
+    async def add_comment(self, task_id: int, description: str) -> int: ...
+
 
 class NotifierPort(Protocol):
     """Outbound notifications decoupled from aiogram."""
@@ -44,6 +49,22 @@ class NotifierPort(Protocol):
         image_bytes: bytes | None,
     ) -> int:
         """Send the manager card and return the Telegram message id."""
+        ...
+
+    async def clear_manager_decision_keyboard(
+        self, *, manager: User, message_id: int
+    ) -> None:
+        """Remove approve/reject/question buttons from the manager card."""
+        ...
+
+    async def notify_employee_decision(
+        self,
+        *,
+        employee: User,
+        expense: Expense,
+        detail: str | None = None,
+    ) -> None:
+        """Tell the employee the manager's decision (and optional reason/question)."""
         ...
 
 

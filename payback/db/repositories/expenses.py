@@ -49,7 +49,11 @@ class ExpensesRepo:
         return expense
 
     async def get_by_id(self, expense_id: int) -> Expense | None:
-        return await self._session.get(Expense, expense_id)
+        return await self._session.scalar(
+            select(Expense)
+            .where(Expense.id == expense_id)
+            .options(selectinload(Expense.employee))
+        )
 
     async def get_by_planfix_task_id(self, planfix_task_id: int) -> Expense | None:
         return await self._session.scalar(

@@ -28,3 +28,10 @@ class ExpenseSubmission(StatesGroup):
     no_receipt_comment = State()
     no_receipt_proof = State()
     replace_confirm = State()
+
+
+class ManagerDecision(StatesGroup):
+    """FSM for reject reason and clarification question (stage 8A)."""
+
+    waiting_reject_reason = State()
+    waiting_question = State()

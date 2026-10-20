@@ -1,5 +1,6 @@
 """In-memory Planfix and notifier doubles for service tests."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from payback.db.models import Expense, User
@@ -19,11 +20,16 @@ class FakePlanfix:
     create_calls: int = 0
     upload_calls: int = 0
     attach_calls: int = 0
+    update_calls: int = 0
+    comment_calls: int = 0
     tasks_by_expense: dict[int, int] = field(default_factory=dict)
     files: dict[int, bytes] = field(default_factory=dict)
     attachments: list[tuple[int, int]] = field(default_factory=list)
+    task_updates: list[tuple[int, dict[str, object]]] = field(default_factory=list)
+    comments: list[tuple[int, str]] = field(default_factory=list)
     _next_task_id: int = 100
     _next_file_id: int = 1000
+    _next_comment_id: int = 7000
 
     async def create_task(
         self,
@@ -73,12 +79,29 @@ class FakePlanfix:
         del title_field_id
         return list(self.directory_entries.get(directory_id, []))
 
+    async def update_task(self, task_id: int, payload: Mapping[str, object]) -> None:
+        self.update_calls += 1
+        if self.fail_on == "update_task":
+            raise PlanfixError("fake update_task failure")
+        self.task_updates.append((task_id, dict(payload)))
+
+    async def add_comment(self, task_id: int, description: str) -> int:
+        self.comment_calls += 1
+        if self.fail_on == "add_comment":
+            raise PlanfixError("fake add_comment failure")
+        comment_id = self._next_comment_id
+        self._next_comment_id += 1
+        self.comments.append((task_id, description))
+        return comment_id
+
 
 @dataclass
 class FakeNotifier:
     """Record manager notifications without talking to Telegram."""
 
     messages: list[dict[str, object]] = field(default_factory=list)
+    employee_messages: list[dict[str, object]] = field(default_factory=list)
+    cleared_keyboards: list[tuple[int, int]] = field(default_factory=list)
     _next_message_id: int = 5000
 
     async def notify_manager_new_expense(
@@ -101,6 +124,27 @@ class FakeNotifier:
             }
         )
         return message_id
+
+    async def clear_manager_decision_keyboard(
+        self, *, manager: User, message_id: int
+    ) -> None:
+        self.cleared_keyboards.append((manager.id, message_id))
+
+    async def notify_employee_decision(
+        self,
+        *,
+        employee: User,
+        expense: Expense,
+        detail: str | None = None,
+    ) -> None:
+        self.employee_messages.append(
+            {
+                "employee_id": employee.id,
+                "expense_id": expense.id,
+                "status": expense.status,
+                "detail": detail,
+            }
+        )
 
 
 __all__ = ["FakeNotifier", "FakePlanfix"]

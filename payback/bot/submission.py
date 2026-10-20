@@ -493,10 +493,6 @@ def create_router() -> Router:
             )
             await callback.message.answer(f"{texts.SUBMISSION_CANCELLED}\n{menu}")
 
-    @router.callback_query(F.data.startswith("mgr:"))
-    async def manager_action_stub(callback: CallbackQuery) -> None:
-        await callback.answer(texts.APPROVAL_COMING_SOON, show_alert=True)
-
     return router
 
 

@@ -61,6 +61,15 @@ SUBMITTED_PENDING_PLANFIX = "Заявка принята, отправим её,
 EDIT_PICK = "Что исправить?"
 EDIT_QR_LOCKED = "Сумму и дату, распознанные по QR, изменить нельзя."
 APPROVAL_COMING_SOON = "Согласование будет доступно в следующей версии."
+ASK_REJECT_REASON = "Укажите причину отказа."
+ASK_CLARIFICATION_QUESTION = "Напишите вопрос сотруднику."
+DECISION_DONE = "Решение сохранено."
+DECISION_ALREADY_TAKEN = "Заявка уже обработана."
+DECISION_FORBIDDEN = "Нельзя решить чужую заявку."
+DECISION_NOT_FOUND = "Заявка не найдена."
+EMPLOYEE_APPROVED = "Заявка №{task_id} одобрена."
+EMPLOYEE_REJECTED = "Заявка №{task_id} отклонена.\nПричина: {detail}"
+EMPLOYEE_CLARIFICATION = "По заявке №{task_id} нужен ответ.\nВопрос: {detail}"
 NO_RECEIPT_BUTTON = "Трата без чека"
 MANAGER_NEW_EXPENSE = (
     "Новая заявка от {employee}\n"
@@ -264,6 +273,7 @@ __all__ = [
     "APPROVAL_COMING_SOON",
     "ASK_AMOUNT",
     "ASK_CATEGORY",
+    "ASK_CLARIFICATION_QUESTION",
     "ASK_COMMENT",
     "ASK_COMMENT_REQUIRED",
     "ASK_DATE",
@@ -271,15 +281,23 @@ __all__ = [
     "ASK_NAME",
     "ASK_NAME_WITH_SPACE",
     "ASK_PROOF_PHOTO",
+    "ASK_REJECT_REASON",
     "CATEGORIES_UNAVAILABLE",
     "CHOOSE_PLANFIX_USER",
+    "DECISION_ALREADY_TAKEN",
+    "DECISION_DONE",
+    "DECISION_FORBIDDEN",
+    "DECISION_NOT_FOUND",
     "DEV_AS_NEED_REGISTER",
     "DEV_AS_SWITCHED",
     "DEV_AS_USAGE",
     "EDIT_PICK",
     "EDIT_QR_LOCKED",
+    "EMPLOYEE_APPROVED",
+    "EMPLOYEE_CLARIFICATION",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
+    "EMPLOYEE_REJECTED",
     "GENERIC_ERROR",
     "INACTIVE_USER",
     "INVALID_AMOUNT",
