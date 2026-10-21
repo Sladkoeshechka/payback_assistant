@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.dispatcher.event.bases import SkipHandler
 from aiogram.types import CallbackQuery, Message, TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -28,6 +29,9 @@ class ErrorHandlingMiddleware(BaseMiddleware):
     ) -> Any:
         try:
             return await handler(event, data)
+        except SkipHandler:
+            # Let aiogram continue to the next matching handler/router.
+            raise
         except Exception:
             logger.exception(
                 "unhandled bot error",

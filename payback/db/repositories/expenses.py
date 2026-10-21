@@ -55,6 +55,19 @@ class ExpensesRepo:
             .options(selectinload(Expense.employee))
         )
 
+    async def get_clarification_for_employee(self, employee_id: int) -> Expense | None:
+        """Newest expense waiting for this employee's clarification reply, if any."""
+        return await self._session.scalar(
+            select(Expense)
+            .where(
+                Expense.employee_id == employee_id,
+                Expense.status == ExpenseStatus.CLARIFICATION,
+            )
+            .options(selectinload(Expense.employee))
+            .order_by(Expense.created_at.desc(), Expense.id.desc())
+            .limit(1)
+        )
+
     async def get_by_planfix_task_id(self, planfix_task_id: int) -> Expense | None:
         return await self._session.scalar(
             select(Expense).where(Expense.planfix_task_id == planfix_task_id)

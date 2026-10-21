@@ -5,7 +5,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from payback.bot import approval, commands, people, staff, submission
+from payback.bot import approval, clarification, commands, people, staff, submission
 from payback.bot.middlewares import DbRepositoryMiddleware, ErrorHandlingMiddleware
 from payback.config import Settings
 from payback.planfix.directories import DirectoryCache
@@ -49,6 +49,8 @@ def create_dispatcher(
     dp.include_router(people.create_router())
     dp.include_router(staff.create_router())
     dp.include_router(approval.create_router())
+    # Before submission so clarification photos are not treated as new receipts.
+    dp.include_router(clarification.create_router())
     dp.include_router(submission.create_router())
     dp.include_router(commands.create_router())
     return dp

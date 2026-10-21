@@ -70,6 +70,8 @@ DECISION_NOT_FOUND = "Заявка не найдена."
 EMPLOYEE_APPROVED = "Заявка №{task_id} одобрена."
 EMPLOYEE_REJECTED = "Заявка №{task_id} отклонена.\nПричина: {detail}"
 EMPLOYEE_CLARIFICATION = "По заявке №{task_id} нужен ответ.\nВопрос: {detail}"
+CLARIFICATION_REPLY_ACCEPTED = "Ответ отправлен руководителю."
+CLARIFICATION_PLANFIX_UNAVAILABLE = "Не удалось отправить ответ: ПланФикс недоступен."
 NO_RECEIPT_BUTTON = "Трата без чека"
 MANAGER_NEW_EXPENSE = (
     "Новая заявка от {employee}\n"
@@ -284,6 +286,8 @@ __all__ = [
     "ASK_REJECT_REASON",
     "CATEGORIES_UNAVAILABLE",
     "CHOOSE_PLANFIX_USER",
+    "CLARIFICATION_PLANFIX_UNAVAILABLE",
+    "CLARIFICATION_REPLY_ACCEPTED",
     "DECISION_ALREADY_TAKEN",
     "DECISION_DONE",
     "DECISION_FORBIDDEN",
