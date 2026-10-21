@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 
@@ -57,30 +56,22 @@ def _service(session: AsyncSession, planfix: FakePlanfix) -> RevisionService:
     )
 
 
-async def test_reply_text_moves_to_approved(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_reply_text_moves_to_approved(env: dict[str, str], session: AsyncSession) -> None:
     _, employee = await _people(session)
     await _needs_revision_expense(session, employee.id)
     planfix = FakePlanfix()
     settings = Settings()
 
-    result = await _service(session, planfix).reply(
-        employee=employee, text="Приложил счет"
-    )
+    result = await _service(session, planfix).reply(employee=employee, text="Приложил счет")
     await session.commit()
 
     assert result.status is ExpenseStatus.APPROVED
     assert planfix.comments == [(55, "Приложил счет")]
-    assert planfix.task_updates == [
-        (55, {"status": {"id": settings.planfix.statuses.approved}})
-    ]
+    assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.approved}})]
     assert planfix.upload_calls == 0
 
 
-async def test_reply_photo_uploads_and_attaches(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: AsyncSession) -> None:
     _, employee = await _people(session)
     await _needs_revision_expense(session, employee.id)
     planfix = FakePlanfix()

@@ -1,6 +1,5 @@
 """Telegram adapter for ``NotifierPort`` (stage 8C)."""
 
-
 import logging
 
 from aiogram import Bot

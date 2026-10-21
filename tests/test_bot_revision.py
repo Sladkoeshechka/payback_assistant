@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -16,6 +15,7 @@ from payback.db.repositories.users import UsersRepo
 from payback.services.fakes import FakeNotifier, FakePlanfix
 
 _RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "valid-receipt.jpg"
+
 
 async def test_employee_text_reply_returns_to_approved(
     env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
@@ -39,9 +39,7 @@ async def test_employee_text_reply_returns_to_approved(
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.APPROVED
     assert planfix.comments == [(55, "Исправил документы")]
-    assert planfix.task_updates == [
-        (55, {"status": {"id": settings.planfix.statuses.approved}})
-    ]
+    assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.approved}})]
     assert any(
         getattr(method, "text", None) == texts.REVISION_REPLY_SENT
         for method in telegram_session.methods
@@ -63,12 +61,8 @@ async def test_employee_revision_reply_second_time(
         notifier=FakeNotifier(),
     )
 
-    await dispatcher.feed_raw_update(
-        bot, _message_update(1, employee.telegram_id, "первый")
-    )
-    await dispatcher.feed_raw_update(
-        bot, _message_update(2, employee.telegram_id, "второй")
-    )
+    await dispatcher.feed_raw_update(bot, _message_update(1, employee.telegram_id, "первый"))
+    await dispatcher.feed_raw_update(bot, _message_update(2, employee.telegram_id, "второй"))
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.APPROVED
@@ -100,14 +94,16 @@ async def test_employee_revision_photo_reply(
         notifier=notifier,
     )
 
-    await dispatcher.feed_raw_update(
-        bot, _photo_update(1, employee.telegram_id, caption="скан")
-    )
+    await dispatcher.feed_raw_update(bot, _photo_update(1, employee.telegram_id, caption="скан"))
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.APPROVED
     assert planfix.upload_calls == 1
     assert planfix.attach_calls == 1
+    assert len(planfix.attachments) == 1
+    file_id, task_id = planfix.attachments[0]
+    assert task_id == 55
+    assert planfix.files[file_id] == _RECEIPT.read_bytes()
     assert planfix.comments == [(55, "скан")]
     assert len(notifier.messages) == 0
 

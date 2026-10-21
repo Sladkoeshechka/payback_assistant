@@ -1,6 +1,5 @@
 """Employee replies while an expense needs revision (stage 8D)."""
 
-
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
@@ -74,9 +73,7 @@ class RevisionService:
             await self._planfix.attach_file(file_id, task_id)
         comment = text if text is not None else "Ответ сотрудника (фото)"
         await self._planfix.add_comment(task_id, comment)
-        await self._planfix.update_task(
-            task_id, {"status": {"id": self._status_ids.approved}}
-        )
+        await self._planfix.update_task(task_id, {"status": {"id": self._status_ids.approved}})
 
 
 __all__ = [
