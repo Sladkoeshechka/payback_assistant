@@ -104,7 +104,7 @@ class FakeNotifier:
     cleared_keyboards: list[tuple[int, int]] = field(default_factory=list)
     _next_message_id: int = 5000
 
-    async def notify_manager_new_expense(
+    async def notify_manager_expense_card(
         self,
         *,
         manager: User,

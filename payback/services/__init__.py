@@ -13,6 +13,7 @@ from payback.services.clarification import (
 )
 from payback.services.draft import SubmissionDraft
 from payback.services.fakes import FakeNotifier, FakePlanfix
+from payback.services.notifications import NotifierPort, format_employee_decision
 from payback.services.people import PeopleService
 from payback.services.submission import DuplicateReceiptError, SubmissionService
 
@@ -27,7 +28,9 @@ __all__ = [
     "FakeNotifier",
     "FakePlanfix",
     "NoClarificationPendingError",
+    "NotifierPort",
     "PeopleService",
     "SubmissionDraft",
     "SubmissionService",
+    "format_employee_decision",
 ]

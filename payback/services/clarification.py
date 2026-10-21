@@ -56,7 +56,7 @@ class ClarificationService:
         )
         await self._expenses.set_status(expense, ExpenseStatus.PENDING)
         if manager is not None:
-            message_id = await self._notifier.notify_manager_new_expense(
+            message_id = await self._notifier.notify_manager_expense_card(
                 manager=manager,
                 employee=employee,
                 expense=expense,

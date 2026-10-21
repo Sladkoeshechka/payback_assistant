@@ -1,4 +1,5 @@
-"""Telegram implementation of manager and employee notifications."""
+"""Telegram adapter for ``NotifierPort`` (stage 8C)."""
+
 
 import logging
 
@@ -8,7 +9,8 @@ from aiogram.types import BufferedInputFile
 
 from payback.bot import texts
 from payback.bot.keyboards import manager_decision_keyboard
-from payback.db.models import Expense, ExpenseStatus, User
+from payback.db.models import Expense, User
+from payback.services.notifications import format_employee_decision
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class TelegramNotifier:
     def __init__(self, bot: Bot) -> None:
         self._bot = bot
 
-    async def notify_manager_new_expense(
+    async def notify_manager_expense_card(
         self,
         *,
         manager: User,
@@ -64,15 +66,7 @@ class TelegramNotifier:
         expense: Expense,
         detail: str | None = None,
     ) -> None:
-        task_id = expense.planfix_task_id if expense.planfix_task_id is not None else expense.id
-        if expense.status is ExpenseStatus.APPROVED:
-            text = texts.EMPLOYEE_APPROVED.format(task_id=task_id)
-        elif expense.status is ExpenseStatus.REJECTED:
-            text = texts.EMPLOYEE_REJECTED.format(task_id=task_id, detail=detail or "—")
-        elif expense.status is ExpenseStatus.CLARIFICATION:
-            text = texts.EMPLOYEE_CLARIFICATION.format(task_id=task_id, detail=detail or "—")
-        else:
-            text = f"Статус заявки №{task_id}: {texts.status_label(expense.status)}"
+        text = format_employee_decision(expense=expense, detail=detail)
         await self._bot.send_message(chat_id=employee.telegram_id, text=text)
 
 

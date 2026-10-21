@@ -220,7 +220,7 @@ class SubmissionService:
     ) -> None:
         if manager is None or expense.manager_message_id is not None:
             return
-        message_id = await self._notifier.notify_manager_new_expense(
+        message_id = await self._notifier.notify_manager_expense_card(
             manager=manager,
             employee=employee,
             expense=expense,

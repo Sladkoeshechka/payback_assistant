@@ -7,6 +7,11 @@ from decimal import Decimal
 
 from payback.db.models import Expense, ExpenseStatus, Invite, User, UserRole
 from payback.services.draft import SubmissionDraft
+from payback.services.notifications import (
+    NOTIFY_EMPLOYEE_APPROVED,
+    NOTIFY_EMPLOYEE_CLARIFICATION,
+    NOTIFY_EMPLOYEE_REJECTED,
+)
 from payback.services.people import StaffOverview
 
 ASK_NAME = "Введите имя и фамилию."
@@ -67,9 +72,6 @@ DECISION_DONE = "Решение сохранено."
 DECISION_ALREADY_TAKEN = "Заявка уже обработана."
 DECISION_FORBIDDEN = "Нельзя решить чужую заявку."
 DECISION_NOT_FOUND = "Заявка не найдена."
-EMPLOYEE_APPROVED = "Заявка №{task_id} одобрена."
-EMPLOYEE_REJECTED = "Заявка №{task_id} отклонена.\nПричина: {detail}"
-EMPLOYEE_CLARIFICATION = "По заявке №{task_id} нужен ответ.\nВопрос: {detail}"
 CLARIFICATION_REPLY_SENT = "Ответ отправлен руководителю."
 CLARIFICATION_PLANFIX_UNAVAILABLE = "Не удалось отправить ответ: ПланФикс недоступен."
 NO_RECEIPT_BUTTON = "Трата без чека"
@@ -297,11 +299,11 @@ __all__ = [
     "DEV_AS_USAGE",
     "EDIT_PICK",
     "EDIT_QR_LOCKED",
-    "EMPLOYEE_APPROVED",
-    "EMPLOYEE_CLARIFICATION",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
-    "EMPLOYEE_REJECTED",
+    "NOTIFY_EMPLOYEE_APPROVED",
+    "NOTIFY_EMPLOYEE_CLARIFICATION",
+    "NOTIFY_EMPLOYEE_REJECTED",
     "GENERIC_ERROR",
     "INACTIVE_USER",
     "INVALID_AMOUNT",

@@ -1,14 +1,18 @@
-"""Narrow ports used by submission (and later approval) services."""
+"""Narrow ports used by domain services.
+
+``NotifierPort`` lives in ``payback.services.notifications`` and is re-exported here
+so existing ``from payback.services.ports import NotifierPort`` imports keep working.
+"""
 
 from collections.abc import Mapping
 from typing import Protocol
 
-from payback.db.models import Expense, User
 from payback.planfix.models import PlanfixDirectory, PlanfixDirectoryEntry, PlanfixUser
+from payback.services.notifications import NotifierPort
 
 
 class PlanfixPort(Protocol):
-    """Planfix operations required to push an expense into a task."""
+    """Planfix operations required to push and update expense tasks."""
 
     async def create_task(
         self,
@@ -35,35 +39,6 @@ class PlanfixPort(Protocol):
     async def update_task(self, task_id: int, payload: Mapping[str, object]) -> None: ...
 
     async def add_comment(self, task_id: int, description: str) -> int: ...
-
-
-class NotifierPort(Protocol):
-    """Outbound notifications decoupled from aiogram."""
-
-    async def notify_manager_new_expense(
-        self,
-        *,
-        manager: User,
-        employee: User,
-        expense: Expense,
-        image_bytes: bytes | None,
-    ) -> int:
-        """Send the manager card and return the Telegram message id."""
-        ...
-
-    async def clear_manager_decision_keyboard(self, *, manager: User, message_id: int) -> None:
-        """Remove approve/reject/question buttons from the manager card."""
-        ...
-
-    async def notify_employee_decision(
-        self,
-        *,
-        employee: User,
-        expense: Expense,
-        detail: str | None = None,
-    ) -> None:
-        """Tell the employee the manager's decision (and optional reason/question)."""
-        ...
 
 
 __all__ = ["NotifierPort", "PlanfixPort"]

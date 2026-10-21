@@ -10,7 +10,8 @@ from payback.bot.middlewares import DbRepositoryMiddleware, ErrorHandlingMiddlew
 from payback.config import Settings
 from payback.planfix.directories import DirectoryCache
 from payback.planfix.models import PlanfixSchema
-from payback.services.ports import NotifierPort, PlanfixPort
+from payback.services.notifications import NotifierPort
+from payback.services.ports import PlanfixPort
 
 
 def create_bot(settings: Settings) -> Bot:
