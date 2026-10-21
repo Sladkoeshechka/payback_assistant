@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 
@@ -77,9 +76,7 @@ async def test_reply_text_moves_to_pending_and_renotifies(
 
     assert result.status is ExpenseStatus.PENDING
     assert planfix.comments == [(55, "Вот чек из почты")]
-    assert planfix.task_updates == [
-        (55, {"status": {"id": settings.planfix.statuses.pending}})
-    ]
+    assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.pending}})]
     assert planfix.upload_calls == 0
     assert len(notifier.messages) == 1
     assert notifier.messages[0]["expense_id"] == expense.id
@@ -87,9 +84,7 @@ async def test_reply_text_moves_to_pending_and_renotifies(
     assert result.manager_message_id != 9001
 
 
-async def test_reply_photo_uploads_and_attaches(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: AsyncSession) -> None:
     manager, employee = await _people(session)
     await _clarification_expense(session, employee.id)
     planfix = FakePlanfix()

@@ -50,9 +50,7 @@ class ExpensesRepo:
 
     async def get_by_id(self, expense_id: int) -> Expense | None:
         return await self._session.scalar(
-            select(Expense)
-            .where(Expense.id == expense_id)
-            .options(selectinload(Expense.employee))
+            select(Expense).where(Expense.id == expense_id).options(selectinload(Expense.employee))
         )
 
     async def get_clarification_for_employee(self, employee_id: int) -> Expense | None:

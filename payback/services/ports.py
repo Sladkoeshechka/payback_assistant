@@ -51,9 +51,7 @@ class NotifierPort(Protocol):
         """Send the manager card and return the Telegram message id."""
         ...
 
-    async def clear_manager_decision_keyboard(
-        self, *, manager: User, message_id: int
-    ) -> None:
+    async def clear_manager_decision_keyboard(self, *, manager: User, message_id: int) -> None:
         """Remove approve/reject/question buttons from the manager card."""
         ...
 

@@ -1,6 +1,5 @@
 """Telegram handlers for employee clarification replies (stage 8B)."""
 
-
 from io import BytesIO
 
 from aiogram import Bot, F, Router

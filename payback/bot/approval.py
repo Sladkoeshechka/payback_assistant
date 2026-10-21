@@ -1,6 +1,5 @@
 """Telegram handlers for manager approve / reject / clarification (stage 8A)."""
 
-
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message

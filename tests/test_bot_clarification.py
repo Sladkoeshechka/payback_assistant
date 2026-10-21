@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 
@@ -38,9 +37,7 @@ async def test_employee_text_reply_returns_to_pending(
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.PENDING
     assert planfix.comments == [(55, "Приложил выписку")]
-    assert planfix.task_updates[0][1] == {
-        "status": {"id": settings.planfix.statuses.pending}
-    }
+    assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.pending}}
     assert len(notifier.messages) == 1
     assert expense.manager_message_id == notifier.messages[0]["message_id"]
     assert any(
@@ -66,9 +63,7 @@ async def test_employee_photo_reply_attaches_file(
         notifier=notifier,
     )
 
-    await dispatcher.feed_raw_update(
-        bot, _photo_update(1, employee.telegram_id, caption="скан")
-    )
+    await dispatcher.feed_raw_update(bot, _photo_update(1, employee.telegram_id, caption="скан"))
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.PENDING
@@ -114,9 +109,7 @@ async def test_photo_without_clarification_still_starts_submission(
 
     assert planfix.comment_calls == 0
     assert notifier.messages == []
-    assert any(
-        getattr(method, "text", None) is not None for method in telegram_session.methods
-    )
+    assert any(getattr(method, "text", None) is not None for method in telegram_session.methods)
 
 
 async def _clarification_fixture(
@@ -151,6 +144,7 @@ async def _clarification_fixture(
     await session.commit()
     return manager, employee, expense
 
+
 def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object]:
     return {
         "update_id": update_id,
@@ -164,9 +158,7 @@ def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object
     }
 
 
-def _photo_update(
-    update_id: int, user_id: int, *, caption: str | None = None
-) -> dict[str, object]:
+def _photo_update(update_id: int, user_id: int, *, caption: str | None = None) -> dict[str, object]:
     message: dict[str, object] = {
         "message_id": update_id,
         "date": 1_700_000_000,

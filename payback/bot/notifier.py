@@ -1,6 +1,5 @@
 """Telegram implementation of manager and employee notifications."""
 
-
 import logging
 
 from aiogram import Bot
@@ -45,9 +44,7 @@ class TelegramNotifier:
             )
         return message.message_id
 
-    async def clear_manager_decision_keyboard(
-        self, *, manager: User, message_id: int
-    ) -> None:
+    async def clear_manager_decision_keyboard(self, *, manager: User, message_id: int) -> None:
         try:
             await self._bot.edit_message_reply_markup(
                 chat_id=manager.telegram_id,

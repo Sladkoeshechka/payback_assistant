@@ -1,6 +1,5 @@
 """Manager decisions on pending expenses (stage 8A)."""
 
-
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
@@ -53,9 +52,7 @@ class ApprovalService:
             comment=f"Причина отказа: {reason}",
         )
         await self._expenses.set_status(expense, ExpenseStatus.REJECTED)
-        await self._finish_ui(
-            manager=manager, employee=employee, expense=expense, detail=reason
-        )
+        await self._finish_ui(manager=manager, employee=employee, expense=expense, detail=reason)
         return expense
 
     async def ask(self, *, expense_id: int, manager: User, question: str) -> Expense:
@@ -66,9 +63,7 @@ class ApprovalService:
             comment=question,
         )
         await self._expenses.set_status(expense, ExpenseStatus.CLARIFICATION)
-        await self._finish_ui(
-            manager=manager, employee=employee, expense=expense, detail=question
-        )
+        await self._finish_ui(manager=manager, employee=employee, expense=expense, detail=question)
         return expense
 
     async def _load_pending_for_manager(
@@ -93,9 +88,7 @@ class ApprovalService:
     ) -> None:
         if expense.planfix_task_id is None:
             return
-        await self._planfix.update_task(
-            expense.planfix_task_id, {"status": {"id": status_id}}
-        )
+        await self._planfix.update_task(expense.planfix_task_id, {"status": {"id": status_id}})
         if comment:
             await self._planfix.add_comment(expense.planfix_task_id, comment)
 

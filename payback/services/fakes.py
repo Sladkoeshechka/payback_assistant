@@ -125,9 +125,7 @@ class FakeNotifier:
         )
         return message_id
 
-    async def clear_manager_decision_keyboard(
-        self, *, manager: User, message_id: int
-    ) -> None:
+    async def clear_manager_decision_keyboard(self, *, manager: User, message_id: int) -> None:
         self.cleared_keyboards.append((manager.id, message_id))
 
     async def notify_employee_decision(

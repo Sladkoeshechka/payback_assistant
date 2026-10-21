@@ -20,10 +20,8 @@ from payback.config import get_settings
 
 def _sync_database_url(database_url: str) -> str:
     """Map async driver URLs to sync ones for ``inspect``."""
-    return (
-        database_url.replace("sqlite+aiosqlite://", "sqlite://", 1).replace(
-            "postgresql+asyncpg://", "postgresql+psycopg://", 1
-        )
+    return database_url.replace("sqlite+aiosqlite://", "sqlite://", 1).replace(
+        "postgresql+asyncpg://", "postgresql+psycopg://", 1
     )
 
 

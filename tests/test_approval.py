@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 
@@ -97,9 +96,7 @@ async def test_approve_updates_planfix_local_status_and_notifies(
     assert notifier.employee_messages[0]["status"] is ExpenseStatus.APPROVED
 
 
-async def test_reject_writes_comment_and_reason(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_reject_writes_comment_and_reason(env: dict[str, str], session: AsyncSession) -> None:
     manager, _, employee = await _people(session)
     expense = await _pending_expense(session, employee.id)
     planfix = FakePlanfix()
@@ -112,16 +109,12 @@ async def test_reject_writes_comment_and_reason(
     await session.commit()
 
     assert result.status is ExpenseStatus.REJECTED
-    assert planfix.task_updates[0][1] == {
-        "status": {"id": settings.planfix.statuses.rejected}
-    }
+    assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.rejected}}
     assert planfix.comments == [(55, "Причина отказа: личная покупка")]
     assert notifier.employee_messages[0]["detail"] == "личная покупка"
 
 
-async def test_ask_moves_to_clarification(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_ask_moves_to_clarification(env: dict[str, str], session: AsyncSession) -> None:
     manager, _, employee = await _people(session)
     expense = await _pending_expense(session, employee.id)
     planfix = FakePlanfix()
@@ -134,9 +127,7 @@ async def test_ask_moves_to_clarification(
     await session.commit()
 
     assert result.status is ExpenseStatus.CLARIFICATION
-    assert planfix.task_updates[0][1] == {
-        "status": {"id": settings.planfix.statuses.clarification}
-    }
+    assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.clarification}}
     assert planfix.comments == [(55, "Есть чек?")]
     assert notifier.employee_messages[0]["detail"] == "Есть чек?"
 
@@ -159,9 +150,7 @@ async def test_double_approve_rejected_when_not_pending(
     assert len(notifier.employee_messages) == 1
 
 
-async def test_wrong_manager_is_forbidden(
-    env: dict[str, str], session: AsyncSession
-) -> None:
+async def test_wrong_manager_is_forbidden(env: dict[str, str], session: AsyncSession) -> None:
     _, other_manager, employee = await _people(session)
     expense = await _pending_expense(session, employee.id)
     planfix = FakePlanfix()

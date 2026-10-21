@@ -156,6 +156,7 @@ async def test_cancel_clears_draft(
     assert "Заявка отменена." in text
     assert "/my" in text
 
+
 async def test_employee_sends_photo_without_readable_qr(
     env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
 ) -> None:
@@ -316,9 +317,7 @@ async def test_submit_when_planfix_fails_keeps_pending_submission(
     existing = await expenses.get_by_id(expense.id)
     assert existing is not None
 
-    resumed = await SubmissionService(
-        expenses, planfix, notifier, settings.planfix.fields
-    ).resume(
+    resumed = await SubmissionService(expenses, planfix, notifier, settings.planfix.fields).resume(
         existing,
         employee=employee,
         manager=manager,
@@ -333,6 +332,7 @@ async def test_submit_when_planfix_fails_keeps_pending_submission(
     assert planfix.create_calls == 2
     assert len(notifier.messages) == 1
     assert manager.id == notifier.messages[0]["manager_id"]
+
 
 async def _people(session: AsyncSession, settings: Settings) -> tuple[User, User]:
     users = UsersRepo(session)

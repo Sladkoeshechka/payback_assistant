@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 
@@ -133,9 +132,7 @@ async def test_reject_with_reason(
         getattr(method, "text", None) == texts.ASK_REJECT_REASON
         for method in telegram_session.methods
     )
-    await dispatcher.feed_raw_update(
-        bot, _message_update(2, manager.telegram_id, "не по политике")
-    )
+    await dispatcher.feed_raw_update(bot, _message_update(2, manager.telegram_id, "не по политике"))
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.REJECTED
@@ -143,9 +140,7 @@ async def test_reject_with_reason(
     assert notifier.employee_messages[0]["detail"] == "не по политике"
 
 
-async def _pending_fixture(
-    session: AsyncSession, settings: Settings
-) -> tuple[User, User, Expense]:
+async def _pending_fixture(session: AsyncSession, settings: Settings) -> tuple[User, User, Expense]:
     users = UsersRepo(session)
     manager = await users.create(
         telegram_id=settings.owner_telegram_id,

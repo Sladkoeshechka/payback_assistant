@@ -1,6 +1,5 @@
 """Employee replies while an expense is in clarification (stage 8B)."""
 
-
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
@@ -87,9 +86,7 @@ class ClarificationService:
             await self._planfix.attach_file(file_id, task_id)
         comment = text if text is not None else "Ответ сотрудника (фото)"
         await self._planfix.add_comment(task_id, comment)
-        await self._planfix.update_task(
-            task_id, {"status": {"id": self._status_ids.pending}}
-        )
+        await self._planfix.update_task(task_id, {"status": {"id": self._status_ids.pending}})
 
 
 __all__ = [
