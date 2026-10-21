@@ -1,6 +1,7 @@
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from aiogram import Bot
 from conftest import RecordingSession
@@ -14,6 +15,7 @@ from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.services.fakes import FakeNotifier, FakePlanfix
 
+_RECEIPT = Path(__file__).parent / "fixtures" / "receipts" / "valid-receipt.jpg"
 
 async def test_employee_text_reply_returns_to_approved(
     env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
@@ -82,6 +84,34 @@ async def test_employee_revision_reply_second_time(
     )
 
 
+async def test_employee_revision_photo_reply(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+    settings = Settings()
+    _, employee, expense = await _revision_fixture(session, settings)
+    planfix = FakePlanfix()
+    notifier = FakeNotifier()
+    telegram_session = RecordingSession(download_bytes=_RECEIPT.read_bytes())
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    dispatcher = create_dispatcher(
+        settings,
+        async_sessionmaker(db_engine, expire_on_commit=False),
+        planfix=planfix,
+        notifier=notifier,
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _photo_update(1, employee.telegram_id, caption="скан")
+    )
+
+    await session.refresh(expense)
+    assert expense.status is ExpenseStatus.APPROVED
+    assert planfix.upload_calls == 1
+    assert planfix.attach_calls == 1
+    assert planfix.comments == [(55, "скан")]
+    assert len(notifier.messages) == 0
+
+
 async def _revision_fixture(
     session: AsyncSession, settings: Settings
 ) -> tuple[User, User, Expense]:
@@ -125,3 +155,23 @@ def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object
             "text": text,
         },
     }
+
+
+def _photo_update(update_id: int, user_id: int, *, caption: str | None = None) -> dict[str, object]:
+    message: dict[str, object] = {
+        "message_id": update_id,
+        "date": 1_700_000_000,
+        "chat": {"id": user_id, "type": "private"},
+        "from": {"id": user_id, "is_bot": False, "first_name": "Ada"},
+        "photo": [
+            {
+                "file_id": "photo-file",
+                "file_unique_id": "uniq",
+                "width": 100,
+                "height": 100,
+            }
+        ],
+    }
+    if caption is not None:
+        message["caption"] = caption
+    return {"update_id": update_id, "message": message}
