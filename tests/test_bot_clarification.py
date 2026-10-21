@@ -44,7 +44,7 @@ async def test_employee_text_reply_returns_to_pending(
     assert len(notifier.messages) == 1
     assert expense.manager_message_id == notifier.messages[0]["message_id"]
     assert any(
-        getattr(method, "text", None) == texts.CLARIFICATION_REPLY_ACCEPTED
+        getattr(method, "text", None) == texts.CLARIFICATION_REPLY_SENT
         for method in telegram_session.methods
     )
     del manager

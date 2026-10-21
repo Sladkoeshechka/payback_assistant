@@ -44,7 +44,7 @@ def create_router() -> Router:
             await service.reply(employee=user, manager=manager, text=message.text.strip())
         except NoClarificationPendingError:
             raise SkipHandler from None
-        await message.answer(texts.CLARIFICATION_REPLY_ACCEPTED)
+        await message.answer(texts.CLARIFICATION_REPLY_SENT)
 
     @router.message(F.photo | (F.document & F.document.mime_type.in_({"image/jpeg", "image/png"})))
     async def on_photo_reply(
@@ -80,7 +80,7 @@ def create_router() -> Router:
             )
         except NoClarificationPendingError:
             raise SkipHandler from None
-        await message.answer(texts.CLARIFICATION_REPLY_ACCEPTED)
+        await message.answer(texts.CLARIFICATION_REPLY_SENT)
 
     return router
 
