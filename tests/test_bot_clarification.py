@@ -151,7 +151,6 @@ async def _clarification_fixture(
     await session.commit()
     return manager, employee, expense
 
-
 def _message_update(update_id: int, user_id: int, text: str) -> dict[str, object]:
     return {
         "update_id": update_id,
@@ -185,3 +184,37 @@ def _photo_update(
     if caption is not None:
         message["caption"] = caption
     return {"update_id": update_id, "message": message}
+
+
+async def test_employee_text_reply_second_time(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+    settings = Settings()
+    _, employee, expense = await _clarification_fixture(session, settings)
+    planfix = FakePlanfix()
+    notifier = FakeNotifier()
+    telegram_session = RecordingSession()
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    dispatcher = create_dispatcher(
+        settings,
+        async_sessionmaker(db_engine, expire_on_commit=False),
+        planfix=planfix,
+        notifier=notifier,
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _message_update(1, employee.telegram_id, "Приложил выписку")
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _message_update(2, employee.telegram_id, "Приложил выписку")
+    )
+
+    await session.refresh(expense)
+    assert expense.status is ExpenseStatus.PENDING
+    assert planfix.comments == [(55, "Приложил выписку")]
+    assert len(planfix.task_updates) == 1
+    assert len(notifier.messages) == 1
+    assert expense.manager_message_id == notifier.messages[0]["message_id"]
+    assert len(telegram_session.methods) == 1
+    assert getattr(telegram_session.methods[0], "text", None) == texts.CLARIFICATION_REPLY_SENT
