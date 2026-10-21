@@ -74,6 +74,8 @@ DECISION_FORBIDDEN = "Нельзя решить чужую заявку."
 DECISION_NOT_FOUND = "Заявка не найдена."
 CLARIFICATION_REPLY_SENT = "Ответ отправлен руководителю."
 CLARIFICATION_PLANFIX_UNAVAILABLE = "Не удалось отправить ответ: ПланФикс недоступен."
+REVISION_REPLY_SENT = "Ответ по доработке отправлен."
+REVISION_PLANFIX_UNAVAILABLE = "Не удалось отправить доработку: ПланФикс недоступен."
 NO_RECEIPT_BUTTON = "Трата без чека"
 MANAGER_NEW_EXPENSE = (
     "Новая заявка от {employee}\n"
@@ -301,9 +303,6 @@ __all__ = [
     "EDIT_QR_LOCKED",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
-    "NOTIFY_EMPLOYEE_APPROVED",
-    "NOTIFY_EMPLOYEE_CLARIFICATION",
-    "NOTIFY_EMPLOYEE_REJECTED",
     "GENERIC_ERROR",
     "INACTIVE_USER",
     "INVALID_AMOUNT",
@@ -316,6 +315,9 @@ __all__ = [
     "MANAGER_NEW_EXPENSE",
     "MANAGER_NO_RECEIPT_MARK",
     "MANAGER_ONLY",
+    "NOTIFY_EMPLOYEE_APPROVED",
+    "NOTIFY_EMPLOYEE_CLARIFICATION",
+    "NOTIFY_EMPLOYEE_REJECTED",
     "NO_EXPENSES",
     "NO_MANAGER",
     "NO_PENDING",
@@ -332,6 +334,8 @@ __all__ = [
     "REFRESH_DONE",
     "REFRESH_UNAVAILABLE",
     "REPLACE_DRAFT_PROMPT",
+    "REVISION_PLANFIX_UNAVAILABLE",
+    "REVISION_REPLY_SENT",
     "STAFF_ACTION_UNAVAILABLE",
     "SUBMISSION_CANCELLED",
     "SUBMITTED",

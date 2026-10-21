@@ -37,10 +37,10 @@ def create_router() -> Router:
             await callback.answer(texts.MANAGER_ONLY, show_alert=True)
             return
         assert user is not None
-        service = _service(expenses_repo, planfix, notifier, settings)
-        if service is None:
+        if planfix is None or notifier is None:
             await callback.answer(texts.PLANFIX_UNAVAILABLE, show_alert=True)
             return
+        service = _service(expenses_repo, planfix, notifier, settings)
         try:
             await service.approve(expense_id=expense_id, manager=user)
         except ExpenseNotFoundError:
@@ -99,10 +99,10 @@ def create_router() -> Router:
         if expense_id is None:
             await state.clear()
             return
-        service = _service(expenses_repo, planfix, notifier, settings)
-        if service is None:
+        if planfix is None or notifier is None:
             await message.answer(texts.PLANFIX_UNAVAILABLE)
             return
+        service = _service(expenses_repo, planfix, notifier, settings)
         try:
             await service.reject(expense_id=expense_id, manager=user, reason=reason)
         except ExpenseNotFoundError:
@@ -136,10 +136,10 @@ def create_router() -> Router:
         if expense_id is None:
             await state.clear()
             return
-        service = _service(expenses_repo, planfix, notifier, settings)
-        if service is None:
+        if planfix is None or notifier is None:
             await message.answer(texts.PLANFIX_UNAVAILABLE)
             return
+        service = _service(expenses_repo, planfix, notifier, settings)
         try:
             await service.ask(expense_id=expense_id, manager=user, question=question)
         except ExpenseNotFoundError:
@@ -157,12 +157,10 @@ def create_router() -> Router:
 
 def _service(
     expenses_repo: ExpensesRepo,
-    planfix: PlanfixPort | None,
-    notifier: NotifierPort | None,
+    planfix: PlanfixPort,
+    notifier: NotifierPort,
     settings: Settings,
-) -> ApprovalService | None:
-    if planfix is None or notifier is None:
-        return None
+) -> ApprovalService:
     return ApprovalService(
         expenses_repo,
         planfix,

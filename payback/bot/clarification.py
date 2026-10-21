@@ -34,10 +34,10 @@ def create_router() -> Router:
             raise SkipHandler
         assert user is not None
         assert message.text is not None
-        service = _service(expenses_repo, planfix, notifier, settings)
-        if service is None:
+        if planfix is None or notifier is None:
             await message.answer(texts.CLARIFICATION_PLANFIX_UNAVAILABLE)
             return
+        service = _service(expenses_repo, planfix, notifier, settings)
         manager = await _manager(users_repo, user)
         try:
             await service.reply(employee=user, manager=manager, text=message.text.strip())
@@ -60,10 +60,10 @@ def create_router() -> Router:
         if not await _should_handle_reply(state, user, expenses_repo):
             raise SkipHandler
         assert user is not None
-        service = _service(expenses_repo, planfix, notifier, settings)
-        if service is None:
+        if planfix is None or notifier is None:
             await message.answer(texts.CLARIFICATION_PLANFIX_UNAVAILABLE)
             return
+        service = _service(expenses_repo, planfix, notifier, settings)
         file_id, content_type, filename = _image_meta(message)
         image_bytes = await _download_file(bot, file_id)
         caption = message.caption.strip() if message.caption else None
@@ -97,12 +97,10 @@ async def _should_handle_reply(
 
 def _service(
     expenses_repo: ExpensesRepo,
-    planfix: PlanfixPort | None,
-    notifier: NotifierPort | None,
+    planfix: PlanfixPort,
+    notifier: NotifierPort,
     settings: Settings,
-) -> ClarificationService | None:
-    if planfix is None or notifier is None:
-        return None
+) -> ClarificationService:
     return ClarificationService(
         expenses_repo,
         planfix,

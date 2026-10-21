@@ -15,6 +15,7 @@ from payback.services.draft import SubmissionDraft
 from payback.services.fakes import FakeNotifier, FakePlanfix
 from payback.services.notifications import NotifierPort, format_employee_decision
 from payback.services.people import PeopleService
+from payback.services.revision import NoRevisionPendingError, RevisionService
 from payback.services.submission import DuplicateReceiptError, SubmissionService
 
 __all__ = [
@@ -28,8 +29,10 @@ __all__ = [
     "FakeNotifier",
     "FakePlanfix",
     "NoClarificationPendingError",
+    "NoRevisionPendingError",
     "NotifierPort",
     "PeopleService",
+    "RevisionService",
     "SubmissionDraft",
     "SubmissionService",
     "format_employee_decision",
