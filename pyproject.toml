@@ -25,6 +25,8 @@ dependencies = [
 # needs root to install. OpenCV's QRCodeDetector is the primary decoder; pyzbar is
 # an optional second pass enabled in the Docker image. See docs/plan.md §5.
 zbar = ["pyzbar>=0.1.9"]
+
+[dependency-groups]
 dev = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
@@ -36,6 +38,9 @@ dev = [
 [build-system]
 requires = ["setuptools>=80"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv]
+default-groups = ["dev"]
 
 [tool.setuptools.packages.find]
 include = ["payback*"]

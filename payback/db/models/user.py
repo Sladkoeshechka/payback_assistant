@@ -11,6 +11,7 @@ from payback.db.models.enums import UserRole
 if TYPE_CHECKING:
     from payback.db.models.expense import Expense
 
+
 class User(Timestamped, Base):
     __tablename__ = "users"
 
