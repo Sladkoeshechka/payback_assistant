@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -68,4 +70,4 @@ class Expense(Timestamped, Base):
     planfix_file_id: Mapped[int | None] = mapped_column(BigInteger)
     manager_message_id: Mapped[int | None] = mapped_column(BigInteger)
 
-    employee: Mapped["User"] = relationship(back_populates="expenses")
+    employee: Mapped[User] = relationship(back_populates="expenses")

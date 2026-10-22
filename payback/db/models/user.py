@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean, Enum, ForeignKey, Integer, String
@@ -8,7 +10,6 @@ from payback.db.models.enums import UserRole
 
 if TYPE_CHECKING:
     from payback.db.models.expense import Expense
-
 
 class User(Timestamped, Base):
     __tablename__ = "users"
@@ -33,10 +34,10 @@ class User(Timestamped, Base):
     planfix_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    manager: Mapped["User | None"] = relationship(
+    manager: Mapped[User | None] = relationship(
         back_populates="subordinates", remote_side="User.id", foreign_keys=[manager_id]
     )
-    subordinates: Mapped[list["User"]] = relationship(
+    subordinates: Mapped[list[User]] = relationship(
         back_populates="manager", foreign_keys=[manager_id]
     )
-    expenses: Mapped[list["Expense"]] = relationship(back_populates="employee")
+    expenses: Mapped[list[Expense]] = relationship(back_populates="employee")
