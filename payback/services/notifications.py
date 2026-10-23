@@ -40,6 +40,16 @@ class NotifierPort(Protocol):
         """Remove approve/reject/question buttons from the manager card."""
         ...
 
+    async def mark_manager_decision_in_planfix(
+        self,
+        *,
+        manager: User,
+        employee: User,
+        expense: Expense,
+    ) -> None:
+        """Clear buttons and note that the decision was made in PlanFix."""
+        ...
+
     async def notify_employee_decision(
         self,
         *,

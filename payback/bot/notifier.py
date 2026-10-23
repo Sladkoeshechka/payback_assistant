@@ -58,6 +58,41 @@ class TelegramNotifier:
                 extra={"manager_telegram_id": manager.telegram_id, "message_id": message_id},
             )
 
+    async def mark_manager_decision_in_planfix(
+        self,
+        *,
+        manager: User,
+        employee: User,
+        expense: Expense,
+    ) -> None:
+        if expense.manager_message_id is None:
+            return
+        body = texts.manager_expense_card(employee=employee, expense=expense)
+        text = f"{body}\n\n{texts.DECISION_IN_PLANFIX}"
+        chat_id = manager.telegram_id
+        message_id = expense.manager_message_id
+        try:
+            if expense.telegram_file_id is not None:
+                await self._bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    caption=text,
+                    reply_markup=None,
+                )
+            else:
+                await self._bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=text,
+                    reply_markup=None,
+                )
+        except TelegramAPIError:
+            logger.exception(
+                "failed to mark manager card decided in PlanFix",
+                extra={"manager_telegram_id": chat_id, "message_id": message_id},
+            )
+            await self.clear_manager_decision_keyboard(manager=manager, message_id=message_id)
+
     async def notify_employee_decision(
         self,
         *,

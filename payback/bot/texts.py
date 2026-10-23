@@ -72,6 +72,7 @@ DECISION_DONE = "Решение сохранено."
 DECISION_ALREADY_TAKEN = "Заявка уже обработана."
 DECISION_FORBIDDEN = "Нельзя решить чужую заявку."
 DECISION_NOT_FOUND = "Заявка не найдена."
+DECISION_IN_PLANFIX = "Решение принято в ПланФиксе."
 CLARIFICATION_REPLY_SENT = "Ответ отправлен руководителю."
 CLARIFICATION_PLANFIX_UNAVAILABLE = "Не удалось отправить ответ: ПланФикс недоступен."
 REVISION_REPLY_SENT = "Ответ по доработке отправлен."
@@ -295,6 +296,7 @@ __all__ = [
     "DECISION_ALREADY_TAKEN",
     "DECISION_DONE",
     "DECISION_FORBIDDEN",
+    "DECISION_IN_PLANFIX",
     "DECISION_NOT_FOUND",
     "DEV_AS_NEED_REGISTER",
     "DEV_AS_SWITCHED",
