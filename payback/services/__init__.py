@@ -17,7 +17,11 @@ from payback.services.notifications import NotifierPort, format_employee_decisio
 from payback.services.people import PeopleService
 from payback.services.revision import NoRevisionPendingError, RevisionService
 from payback.services.submission import DuplicateReceiptError, SubmissionService
-from payback.services.webhook import WebhookService, status_for_planfix_id
+from payback.services.webhook import (
+    WebhookService,
+    status_for_planfix_id,
+    status_hint_from_name,
+)
 
 __all__ = [
     "ApprovalForbiddenError",
@@ -39,4 +43,5 @@ __all__ = [
     "WebhookService",
     "format_employee_decision",
     "status_for_planfix_id",
+    "status_hint_from_name",
 ]

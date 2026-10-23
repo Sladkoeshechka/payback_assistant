@@ -10,7 +10,11 @@ from payback.db.models import Expense, ExpenseStatus, User, UserRole
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.services.fakes import FakeNotifier, FakePlanfix
-from payback.services.webhook import WebhookService, status_for_planfix_id
+from payback.services.webhook import (
+    WebhookService,
+    status_for_planfix_id,
+    status_hint_from_name,
+)
 
 
 async def _people(session: AsyncSession) -> tuple[User, User]:
@@ -64,6 +68,13 @@ async def test_status_for_planfix_id_maps_configured_ids(env: dict[str, str]) ->
     ids = Settings().planfix.statuses
     assert status_for_planfix_id(ids, ids.approved) is ExpenseStatus.APPROVED
     assert status_for_planfix_id(ids, 999_999) is None
+
+
+async def test_status_hint_from_name_maps_known_values() -> None:
+    assert status_hint_from_name("Одобрено") is ExpenseStatus.APPROVED
+    assert status_hint_from_name("  К выплате  ") is ExpenseStatus.TO_PAY
+    assert status_hint_from_name("Неизвестный статус") is None
+    assert status_hint_from_name(None) is None
 
 
 async def test_apply_approved_updates_notifies_and_marks_manager(
@@ -214,6 +225,26 @@ async def test_apply_unknown_status_id_is_noop(env: dict[str, str], session: Asy
     expense = await ExpensesRepo(session).get_by_planfix_task_id(55)
     assert expense is not None
     assert expense.status is ExpenseStatus.PENDING
+    assert notifier.employee_messages == []
+
+
+async def test_apply_unknown_status_id_uses_name_only_as_hint(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    _, employee = await _people(session)
+    await _pending_expense(session, employee.id)
+    planfix = FakePlanfix()
+    planfix.seed_task(55, status_id=999_999)
+    notifier = FakeNotifier()
+
+    result = await _service(session, planfix, notifier).apply(
+        55, webhook_status_name="Одобрено"
+    )
+    await session.commit()
+
+    assert result is None
+    # We still re-fetch by task id and rely on id mapping, not webhook body text.
+    assert planfix.get_task_calls == 1
     assert notifier.employee_messages == []
 
 

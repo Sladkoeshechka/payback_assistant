@@ -69,9 +69,19 @@ class WebhookService:
 
         new_status = status_for_planfix_id(self._status_ids, status_id)
         if new_status is None:
+            name_hint = (
+                status_hint_from_name(webhook_status_name)
+                if webhook_status_name is not None
+                else None
+            )
             logger.warning(
                 "unknown planfix status id on webhook",
-                extra={"planfix_task_id": task_id, "planfix_status_id": status_id},
+                extra={
+                    "planfix_task_id": task_id,
+                    "planfix_status_id": status_id,
+                    "webhook_status_name": webhook_status_name,
+                    "webhook_status_hint": name_hint.value if name_hint is not None else None,
+                },
             )
             return None
 
@@ -157,6 +167,13 @@ def status_for_planfix_id(status_ids: PlanfixStatusIds, status_id: int) -> Expen
     return mapping.get(status_id)
 
 
+def status_hint_from_name(status_name: str | None) -> ExpenseStatus | None:
+    """Best-effort status hint derived from webhook body text."""
+    if status_name is None:
+        return None
+    return _STATUS_NAME_HINTS.get(status_name.strip())
+
+
 def _status_id_from_task(task: Mapping[str, Any] | dict[str, Any]) -> int | None:
     status = task.get("status")
     if not isinstance(status, dict):
@@ -168,7 +185,7 @@ def _status_id_from_task(task: Mapping[str, Any] | dict[str, Any]) -> int | None
 def _log_status_name_mismatch(
     webhook_status_name: str, resolved: ExpenseStatus, task_id: int
 ) -> None:
-    hinted = _STATUS_NAME_HINTS.get(webhook_status_name.strip())
+    hinted = status_hint_from_name(webhook_status_name)
     if hinted is not None and hinted is not resolved:
         logger.info(
             "planfix webhook status name differs from id mapping",
@@ -181,4 +198,4 @@ def _log_status_name_mismatch(
         )
 
 
-__all__ = ["WebhookService", "status_for_planfix_id"]
+__all__ = ["WebhookService", "status_for_planfix_id", "status_hint_from_name"]

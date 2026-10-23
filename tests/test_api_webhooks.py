@@ -217,3 +217,36 @@ async def test_from_approved_to_reimbursed(env: dict[str, str], db_engine: Async
         updated = await ExpensesRepo(session).get_by_planfix_task_id(task_id)
         assert updated is not None
         assert updated.status is ExpenseStatus.REIMBURSED
+
+
+async def test_webhook_apply_failure_is_logged_not_raised(
+    env: dict[str, str], db_engine: AsyncEngine
+) -> None:
+    session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    settings = Settings()
+    task_id = 66
+    await _pending_fixture(session_factory, task_id)
+
+    # Force a background processing failure: `WebhookService.apply()` will raise
+    # on Planfix task fetch, but the endpoint must still answer 200 immediately.
+    planfix = FakePlanfix(fail_on="get_task")
+    notifier = FakeNotifier()
+    app = create_app(
+        settings,
+        session_factory=session_factory,
+        planfix=planfix,
+        notifier=notifier,
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/webhooks/planfix",
+            json={
+                "task": task_id,
+                "secret": env["WEBHOOK_SECRET"],
+                "status": "Одобрено",
+            },
+        )
+
+    assert response.status_code == 200
+    assert app.state.webhook_events == [(task_id, "Одобрено")]

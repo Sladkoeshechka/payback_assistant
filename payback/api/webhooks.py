@@ -79,16 +79,22 @@ async def process_planfix_webhook(
         )
         return
 
-    async with session_factory() as session:
-        service = WebhookService(
-            ExpensesRepo(session),
-            UsersRepo(session),
-            planfix,
-            notifier,
-            status_ids,
+    try:
+        async with session_factory() as session:
+            service = WebhookService(
+                ExpensesRepo(session),
+                UsersRepo(session),
+                planfix,
+                notifier,
+                status_ids,
+            )
+            await service.apply(task_id, webhook_status_name=status_name)
+            await session.commit()
+    except Exception:
+        logger.exception(
+            "planfix webhook apply failed",
+            extra={"planfix_task_id": task_id, "planfix_status_name": status_name},
         )
-        await service.apply(task_id, webhook_status_name=status_name)
-        await session.commit()
 
 
 __all__ = ["PlanfixWebhookBody", "create_router", "process_planfix_webhook"]
