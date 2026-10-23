@@ -142,6 +142,7 @@ async def test_apply_rejected_reads_latest_comment(
     assert result is not None
     assert result.status is ExpenseStatus.REJECTED
     assert planfix.list_comments_calls == 1
+    assert planfix.comment_list_requests == [(0, 1)]
     assert notifier.employee_messages[0]["detail"] == "личная покупка"
 
 

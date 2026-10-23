@@ -47,7 +47,9 @@ class PlanfixPort(Protocol):
 
     async def add_comment(self, task_id: int, description: str) -> int: ...
 
-    async def list_comments(self, task_id: int) -> list[PlanfixComment]: ...
+    async def list_comments(
+        self, task_id: int, *, offset: int = 0, page_size: int = 100
+    ) -> list[PlanfixComment]: ...
 
 
 __all__ = ["NotifierPort", "PlanfixPort"]

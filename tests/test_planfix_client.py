@@ -126,6 +126,23 @@ async def test_file_comments_and_users_normalize_captured_responses(
 
 
 @respx.mock
+async def test_list_comments_supports_paging(planfix_settings: Settings) -> None:
+    route = respx.post("https://example.planfix.ru/rest/task/36/comments/list").mock(
+        return_value=httpx.Response(200, json=load_fixture("comments_list"))
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    await client.list_comments(36, offset=2, page_size=1)
+
+    assert json.loads(route.calls[0].request.content) == {
+        "offset": 2,
+        "pageSize": 1,
+        "fields": "id,description,owner,dateTime,type",
+    }
+    await client.aclose()
+
+
+@respx.mock
 async def test_retries_5xx_three_total_attempts(planfix_settings: Settings) -> None:
     route = respx.get("https://example.planfix.ru/rest/task/36").mock(
         side_effect=[

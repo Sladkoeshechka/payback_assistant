@@ -122,13 +122,15 @@ class PlanfixClient:
         )
         return _required_int(response, "id", "comment creation")
 
-    async def list_comments(self, task_id: int) -> list[PlanfixComment]:
+    async def list_comments(
+        self, task_id: int, *, offset: int = 0, page_size: int = _PAGE_SIZE
+    ) -> list[PlanfixComment]:
         response = await self._request(
             "POST",
             f"/task/{task_id}/comments/list",
             json={
-                "offset": 0,
-                "pageSize": _PAGE_SIZE,
+                "offset": offset,
+                "pageSize": page_size,
                 "fields": "id,description,owner,dateTime,type",
             },
         )

@@ -30,6 +30,7 @@ class FakePlanfix:
     comment_calls: int = 0
     get_task_calls: int = 0
     list_comments_calls: int = 0
+    comment_list_requests: list[tuple[int, int]] = field(default_factory=list)
     tasks_by_expense: dict[int, int] = field(default_factory=dict)
     tasks: dict[int, dict[str, Any]] = field(default_factory=dict)
     files: dict[int, bytes] = field(default_factory=dict)
@@ -124,15 +125,19 @@ class FakePlanfix:
         self.comments.append((task_id, description))
         return comment_id
 
-    async def list_comments(self, task_id: int) -> list[PlanfixComment]:
+    async def list_comments(
+        self, task_id: int, *, offset: int = 0, page_size: int = 100
+    ) -> list[PlanfixComment]:
         self.list_comments_calls += 1
+        self.comment_list_requests.append((offset, page_size))
         if self.fail_on == "list_comments":
             raise PlanfixError("fake list_comments failure")
         # Newest first (PlanFix order).
         texts = [text for tid, text in self.comments if tid == task_id]
+        page = list(reversed(texts))[offset : offset + page_size]
         return [
             PlanfixComment(id=index, description=text, owner_id=None)
-            for index, text in enumerate(reversed(texts), start=1)
+            for index, text in enumerate(page, start=offset + 1)
         ]
 
 

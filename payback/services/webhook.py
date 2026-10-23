@@ -34,6 +34,7 @@ _STATUSES_NEEDING_COMMENT = frozenset(
         ExpenseStatus.NEEDS_REVISION,
     }
 )
+_MAX_COMMENT_PAGES = 20
 
 
 class WebhookService:
@@ -105,10 +106,13 @@ class WebhookService:
     async def _latest_comment_detail(self, task_id: int, status: ExpenseStatus) -> str | None:
         if status not in _STATUSES_NEEDING_COMMENT:
             return None
-        comments = await self._planfix.list_comments(task_id)
-        if not comments:
-            return None
-        return comments[0].description
+        # Planfix has no dedicated "latest human comment" endpoint. We request one
+        # comment per page and stop as soon as one human comment appears.
+        for offset in range(_MAX_COMMENT_PAGES):
+            comments = await self._planfix.list_comments(task_id, offset=offset, page_size=1)
+            if comments:
+                return comments[0].description
+        return None
 
     async def _mark_manager_card(self, expense: Expense) -> None:
         if expense.manager_message_id is None:
