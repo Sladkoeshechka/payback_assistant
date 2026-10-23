@@ -1,4 +1,4 @@
-"""FastAPI application factory (stage 9A)."""
+"""FastAPI application factory (stage 9A/9B)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from payback import __version__
+from payback.api.webhooks import create_router as create_webhook_router
+from payback.config import Settings, get_settings
 
 
 @asynccontextmanager
@@ -20,9 +22,14 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-def create_app() -> FastAPI:
-    """Build the HTTP app (health now; PlanFix webhooks in 9B+)."""
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build the HTTP app (health + PlanFix webhook intake)."""
+    settings = settings if settings is not None else get_settings()
     app = FastAPI(title="payback", version=__version__, lifespan=_lifespan)
+    app.state.webhook_secret = settings.webhook_secret.get_secret_value()
+    # Testable sink for 9B; 9C will replace stub processing with real work.
+    app.state.webhook_events = []
+    app.include_router(create_webhook_router())
 
     @app.get("/health")
     async def health() -> dict[str, str]:
