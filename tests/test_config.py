@@ -51,6 +51,24 @@ def test_secrets_are_not_exposed_by_repr(env: dict[str, str]) -> None:
     }
 
 
+@pytest.mark.parametrize(
+    ("variable", "value"),
+    [
+        ("WEBHOOK_SECRET", ""),
+        ("WEBHOOK_SECRET", "   "),
+        ("BOT_TOKEN", ""),
+        ("PLANFIX_API_TOKEN", ""),
+    ],
+)
+def test_blank_required_secrets_are_rejected(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, variable: str, value: str
+) -> None:
+    monkeypatch.setenv(variable, value)
+
+    with pytest.raises(ValidationError, match="must not be empty"):
+        Settings()
+
+
 def test_rest_base_url_tolerates_a_trailing_slash(
     env: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

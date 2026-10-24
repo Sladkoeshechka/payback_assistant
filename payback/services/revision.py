@@ -50,6 +50,8 @@ class RevisionService:
             image_content_type=image_content_type,
         )
         await self._expenses.set_status(expense, ExpenseStatus.APPROVED)
+        # Persist before the handler returns so a later failure cannot undo PlanFix.
+        await self._expenses.commit()
         return expense
 
     async def _push_planfix(

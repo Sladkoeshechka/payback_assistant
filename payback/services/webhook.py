@@ -109,6 +109,9 @@ class WebhookService:
 
         detail = await self._latest_comment_detail(task_id, new_status)
         await self._expenses.set_status(expense, new_status)
+        # Commit before Telegram side effects: HTTP 200 already went out, and a
+        # notify failure must not leave local status behind PlanFix.
+        await self._expenses.commit()
         await self._mark_manager_card(expense)
         await self._notify_employee(expense, detail=detail)
         return expense
@@ -133,11 +136,17 @@ class WebhookService:
         manager = await self._users.get_by_id(employee.manager_id)
         if manager is None:
             return
-        await self._notifier.mark_manager_decision_in_planfix(
-            manager=manager,
-            employee=employee,
-            expense=expense,
-        )
+        try:
+            await self._notifier.mark_manager_decision_in_planfix(
+                manager=manager,
+                employee=employee,
+                expense=expense,
+            )
+        except Exception:
+            logger.exception(
+                "failed to mark manager card after planfix webhook",
+                extra={"expense_id": expense.id, "planfix_task_id": expense.planfix_task_id},
+            )
 
     async def _notify_employee(self, expense: Expense, *, detail: str | None) -> None:
         # Spec §4.5: TO_PAY is internal — do not notify the employee.
@@ -146,11 +155,17 @@ class WebhookService:
         employee = expense.employee
         if employee is None:
             return
-        await self._notifier.notify_employee_decision(
-            employee=employee,
-            expense=expense,
-            detail=detail,
-        )
+        try:
+            await self._notifier.notify_employee_decision(
+                employee=employee,
+                expense=expense,
+                detail=detail,
+            )
+        except Exception:
+            logger.exception(
+                "failed to notify employee after planfix webhook",
+                extra={"expense_id": expense.id, "planfix_task_id": expense.planfix_task_id},
+            )
 
 
 def status_for_planfix_id(status_ids: PlanfixStatusIds, status_id: int) -> ExpenseStatus | None:

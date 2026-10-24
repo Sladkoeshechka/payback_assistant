@@ -149,6 +149,7 @@ class FakeNotifier:
     employee_messages: list[dict[str, object]] = field(default_factory=list)
     cleared_keyboards: list[tuple[int, int]] = field(default_factory=list)
     planfix_decision_marks: list[dict[str, object]] = field(default_factory=list)
+    fail_on_employee_decision: bool = False
     _next_message_id: int = 5000
 
     async def notify_manager_expense_card(
@@ -199,6 +200,8 @@ class FakeNotifier:
         expense: Expense,
         detail: str | None = None,
     ) -> None:
+        if self.fail_on_employee_decision:
+            raise RuntimeError("fake notify_employee_decision failure")
         self.employee_messages.append(
             {
                 "employee_id": employee.id,

@@ -107,6 +107,10 @@ class ExpensesRepo:
         expense.status = status
         await self._session.flush()
 
+    async def commit(self) -> None:
+        """Persist pending changes before side effects that must not roll back."""
+        await self._session.commit()
+
     async def list_for_employee_since(self, employee_id: int, since: datetime) -> list[Expense]:
         """Return an employee's expenses created at or after ``since``, newest first."""
         result = await self._session.scalars(

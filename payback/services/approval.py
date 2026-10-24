@@ -1,9 +1,13 @@
 """Manager decisions on pending expenses (stage 8A)."""
 
+import logging
+
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.services.ports import NotifierPort, PlanfixPort
+
+logger = logging.getLogger(__name__)
 
 
 class ApprovalError(Exception):
@@ -41,6 +45,8 @@ class ApprovalService:
         expense, employee = await self._load_pending_for_manager(expense_id, manager)
         await self._push_planfix(expense, status_id=self._status_ids.approved)
         await self._expenses.set_status(expense, ExpenseStatus.APPROVED)
+        # Commit before Telegram side effects so a notify failure cannot undo PlanFix.
+        await self._expenses.commit()
         await self._finish_ui(manager=manager, employee=employee, expense=expense)
         return expense
 
@@ -52,6 +58,7 @@ class ApprovalService:
             comment=f"Причина отказа: {reason}",
         )
         await self._expenses.set_status(expense, ExpenseStatus.REJECTED)
+        await self._expenses.commit()
         await self._finish_ui(manager=manager, employee=employee, expense=expense, detail=reason)
         return expense
 
@@ -63,7 +70,10 @@ class ApprovalService:
             comment=question,
         )
         await self._expenses.set_status(expense, ExpenseStatus.CLARIFICATION)
-        await self._finish_ui(manager=manager, employee=employee, expense=expense, detail=question)
+        await self._expenses.commit()
+        await self._finish_ui(
+            manager=manager, employee=employee, expense=expense, detail=question
+        )
         return expense
 
     async def _load_pending_for_manager(
@@ -100,16 +110,22 @@ class ApprovalService:
         expense: Expense,
         detail: str | None = None,
     ) -> None:
-        if expense.manager_message_id is not None:
-            await self._notifier.clear_manager_decision_keyboard(
-                manager=manager,
-                message_id=expense.manager_message_id,
+        try:
+            if expense.manager_message_id is not None:
+                await self._notifier.clear_manager_decision_keyboard(
+                    manager=manager,
+                    message_id=expense.manager_message_id,
+                )
+            await self._notifier.notify_employee_decision(
+                employee=employee,
+                expense=expense,
+                detail=detail,
             )
-        await self._notifier.notify_employee_decision(
-            employee=employee,
-            expense=expense,
-            detail=detail,
-        )
+        except Exception:
+            logger.exception(
+                "failed to notify after manager decision",
+                extra={"expense_id": expense.id, "status": expense.status.value},
+            )
 
 
 __all__ = [

@@ -101,7 +101,17 @@ class TelegramNotifier:
         detail: str | None = None,
     ) -> None:
         text = format_employee_decision(expense=expense, detail=detail)
-        await self._bot.send_message(chat_id=employee.telegram_id, text=text)
+        try:
+            await self._bot.send_message(chat_id=employee.telegram_id, text=text)
+        except TelegramAPIError:
+            logger.exception(
+                "failed to notify employee of decision",
+                extra={
+                    "employee_telegram_id": employee.telegram_id,
+                    "expense_id": expense.id,
+                    "status": expense.status.value,
+                },
+            )
 
 
 __all__ = ["TelegramNotifier"]

@@ -19,7 +19,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Any, Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = ".env"
@@ -93,6 +93,11 @@ class PlanfixSettings(BaseSettings):
     fields: PlanfixFieldIds = Field(default_factory=lambda: PlanfixFieldIds())
     statuses: PlanfixStatusIds = Field(default_factory=lambda: PlanfixStatusIds())
 
+    @field_validator("api_token")
+    @classmethod
+    def api_token_must_be_non_empty(cls, value: SecretStr) -> SecretStr:
+        return _reject_blank_secret(value, "PLANFIX_API_TOKEN")
+
     @field_validator("account")
     @classmethod
     def normalize_account(cls, value: str) -> str:
@@ -120,6 +125,13 @@ class Settings(BaseSettings):
 
     webhook_secret: SecretStr
     database_url: str = "sqlite+aiosqlite:///./payback.db"
+
+    @field_validator("bot_token", "webhook_secret")
+    @classmethod
+    def required_secrets_must_be_non_empty(
+        cls, value: SecretStr, info: ValidationInfo
+    ) -> SecretStr:
+        return _reject_blank_secret(value, (info.field_name or "secret").upper())
 
     max_amount: Decimal = Decimal("100000")
     max_receipt_age_days: int = 90
@@ -170,6 +182,12 @@ class Settings(BaseSettings):
             self.webhook_secret.get_secret_value(),
             self.planfix.api_token.get_secret_value(),
         ]
+
+
+def _reject_blank_secret(value: SecretStr, name: str) -> SecretStr:
+    if not value.get_secret_value().strip():
+        raise ValueError(f"{name} must not be empty")
+    return value
 
 
 def _reject_duplicates(ids: list[int], group: str) -> None:

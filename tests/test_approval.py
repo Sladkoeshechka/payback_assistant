@@ -96,6 +96,26 @@ async def test_approve_updates_planfix_local_status_and_notifies(
     assert notifier.employee_messages[0]["status"] is ExpenseStatus.APPROVED
 
 
+async def test_approve_keeps_local_status_when_notify_fails(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    manager, _, employee = await _people(session)
+    expense = await _pending_expense(session, employee.id)
+    planfix = FakePlanfix()
+    notifier = FakeNotifier(fail_on_employee_decision=True)
+
+    result = await _service(session, planfix, notifier).approve(
+        expense_id=expense.id, manager=manager
+    )
+
+    assert result.status is ExpenseStatus.APPROVED
+    reloaded = await ExpensesRepo(session).get_by_id(expense.id)
+    assert reloaded is not None
+    assert reloaded.status is ExpenseStatus.APPROVED
+    assert planfix.update_calls == 1
+    assert notifier.employee_messages == []
+
+
 async def test_reject_writes_comment_and_reason(env: dict[str, str], session: AsyncSession) -> None:
     manager, _, employee = await _people(session)
     expense = await _pending_expense(session, employee.id)

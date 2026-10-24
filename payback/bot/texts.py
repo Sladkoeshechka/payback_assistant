@@ -4,6 +4,7 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from html import escape
 
 from payback.db.models import Expense, ExpenseStatus, Invite, User, UserRole
 from payback.services.draft import SubmissionDraft
@@ -252,12 +253,12 @@ def manager_expense_card(
     direction = expense.direction_name or "—"
     comment = expense.comment or "—"
     text = MANAGER_NEW_EXPENSE.format(
-        employee=full_name(employee),
+        employee=escape(full_name(employee)),
         amount=format_amount(expense.amount),
         purchase_date=expense.purchase_date,
-        category=expense.category_name,
-        direction=direction,
-        comment=comment,
+        category=escape(expense.category_name),
+        direction=escape(direction),
+        comment=escape(comment),
     )
     if expense.no_receipt:
         text = f"{text}\n{MANAGER_NO_RECEIPT_MARK}"

@@ -2,6 +2,7 @@
 
 # ruff: noqa: RUF001
 
+from html import escape
 from typing import Protocol
 
 from payback.db.models import Expense, ExpenseStatus, User
@@ -64,12 +65,14 @@ class NotifierPort(Protocol):
 def format_employee_decision(*, expense: Expense, detail: str | None = None) -> str:
     """Build the Telegram text for an employee status/decision notification."""
     task_id = expense.planfix_task_id if expense.planfix_task_id is not None else expense.id
+    # Bot default parse mode is HTML; PlanFix/manager text may contain <>& .
+    safe_detail = escape(detail) if detail else "—"
     if expense.status is ExpenseStatus.APPROVED:
         return NOTIFY_EMPLOYEE_APPROVED.format(task_id=task_id)
     if expense.status is ExpenseStatus.REJECTED:
-        return NOTIFY_EMPLOYEE_REJECTED.format(task_id=task_id, detail=detail or "—")
+        return NOTIFY_EMPLOYEE_REJECTED.format(task_id=task_id, detail=safe_detail)
     if expense.status is ExpenseStatus.CLARIFICATION:
-        return NOTIFY_EMPLOYEE_CLARIFICATION.format(task_id=task_id, detail=detail or "—")
+        return NOTIFY_EMPLOYEE_CLARIFICATION.format(task_id=task_id, detail=safe_detail)
     label = _STATUS_LABELS[expense.status]
     return f"Статус заявки №{task_id}: {label}"
 

@@ -1,9 +1,13 @@
 """Employee replies while an expense is in clarification (stage 8B)."""
 
+import logging
+
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.services.ports import NotifierPort, PlanfixPort
+
+logger = logging.getLogger(__name__)
 
 
 class ClarificationError(Exception):
@@ -55,14 +59,23 @@ class ClarificationService:
             image_content_type=image_content_type,
         )
         await self._expenses.set_status(expense, ExpenseStatus.PENDING)
+        # Commit before Telegram notify so a send failure cannot undo PlanFix.
+        await self._expenses.commit()
         if manager is not None:
-            message_id = await self._notifier.notify_manager_expense_card(
-                manager=manager,
-                employee=employee,
-                expense=expense,
-                image_bytes=image_bytes,
-            )
-            await self._expenses.set_manager_message(expense, message_id)
+            try:
+                message_id = await self._notifier.notify_manager_expense_card(
+                    manager=manager,
+                    employee=employee,
+                    expense=expense,
+                    image_bytes=image_bytes,
+                )
+            except Exception:
+                logger.exception(
+                    "failed to re-notify manager after clarification reply",
+                    extra={"expense_id": expense.id},
+                )
+            else:
+                await self._expenses.set_manager_message(expense, message_id)
         return expense
 
     async def _push_planfix(
