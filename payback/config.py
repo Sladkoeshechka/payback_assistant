@@ -18,6 +18,7 @@ Two findings from docs/planfix-notes.md shape this module:
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any, Literal
+from urllib.parse import unquote, urlparse
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -177,11 +178,23 @@ class Settings(BaseSettings):
 
     def secrets(self) -> list[str]:
         """Every secret value, for registration with the log redactor."""
-        return [
+        values = [
             self.bot_token.get_secret_value(),
             self.webhook_secret.get_secret_value(),
             self.planfix.api_token.get_secret_value(),
         ]
+        db_password = _database_password(self.database_url)
+        if db_password is not None:
+            values.append(db_password)
+        return values
+
+
+def _database_password(database_url: str) -> str | None:
+    """Return the URL-decoded DB password, if the URL carries one."""
+    password = urlparse(database_url).password
+    if password is None or password == "":
+        return None
+    return unquote(password)
 
 
 def _reject_blank_secret(value: SecretStr, name: str) -> SecretStr:

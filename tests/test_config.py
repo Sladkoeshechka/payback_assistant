@@ -51,6 +51,17 @@ def test_secrets_are_not_exposed_by_repr(env: dict[str, str]) -> None:
     }
 
 
+def test_database_url_password_is_included_in_secrets(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://payback:s3cret%21pass@db.example/payback",
+    )
+
+    assert "s3cret!pass" in Settings().secrets()
+
+
 @pytest.mark.parametrize(
     ("variable", "value"),
     [
