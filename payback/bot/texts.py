@@ -59,6 +59,7 @@ INVALID_AMOUNT = "Не удалось разобрать сумму. Введи�
 INVALID_DATE = "Не удалось разобрать дату. Используйте формат ДД.ММ.ГГГГ."
 CATEGORIES_UNAVAILABLE = "Категории не настроены, обратитесь к руководителю"
 SUBMISSION_CANCELLED = "Заявка отменена."
+SUBMISSION_NOTHING_TO_CANCEL = "Нечего отменять: заявка уже отправлена или не начата."
 REPLACE_DRAFT_PROMPT = "Начать новую заявку и отменить текущую?"
 NO_RECEIPT_DISABLED = "Подача без чека отключена."
 NO_MANAGER = "Нельзя подать заявку: у вас не указан руководитель. Обратитесь к администратору."
@@ -346,6 +347,7 @@ __all__ = [
     "REVISION_REPLY_SENT",
     "STAFF_ACTION_UNAVAILABLE",
     "SUBMISSION_CANCELLED",
+    "SUBMISSION_NOTHING_TO_CANCEL",
     "SUBMITTED",
     "SUBMITTED_PENDING_PLANFIX",
     "UNKNOWN_START",

@@ -150,6 +150,7 @@ def create_router() -> Router:
         filename = data.get(_PENDING_FILENAME) or "receipt.jpg"
         await state.clear()
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         if not isinstance(file_id, str):
             return
         await _process_receipt_image(
@@ -174,12 +175,15 @@ def create_router() -> Router:
         else:
             await state.set_state(ExpenseSubmission.confirm)
         await callback.answer("Продолжаем текущую заявку.")
+        if isinstance(callback.message, Message):
+            await _clear_inline_keyboard(callback.message)
 
     @router.callback_query(F.data == "sub:retry")
     async def retry_photo(callback: CallbackQuery, state: FSMContext) -> None:
         await state.clear()
         await callback.answer()
         if isinstance(callback.message, Message):
+            await _clear_inline_keyboard(callback.message)
             await callback.message.answer("Пришлите новое фото чека.")
 
     @router.callback_query(F.data == "sub:manual")
@@ -191,8 +195,9 @@ def create_router() -> Router:
         draft.qr_locked = False
         await _save_draft(state, draft)
         await state.set_state(ExpenseSubmission.manual_amount)
-        # await callback.answer()
+        await callback.answer()
         if isinstance(callback.message, Message):
+            await _clear_inline_keyboard(callback.message)
             await callback.message.answer(texts.ASK_AMOUNT)
 
     @router.message(ExpenseSubmission.manual_amount)
@@ -279,6 +284,7 @@ def create_router() -> Router:
         draft.category_name = chosen.name
         await _save_draft(state, draft)
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         data = await state.get_data()
         if data.get(_EDIT_RETURN):
             await state.update_data({_EDIT_RETURN: False})
@@ -307,6 +313,7 @@ def create_router() -> Router:
             draft.direction_name = names.get(str(direction_id)) or names.get(direction_id)
         await _save_draft(state, draft)
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         data = await state.get_data()
         if data.get(_EDIT_RETURN):
             await state.update_data({_EDIT_RETURN: False})
@@ -325,6 +332,7 @@ def create_router() -> Router:
         draft.comment = None
         await _save_draft(state, draft)
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         data = await state.get_data()
         if data.get(_EDIT_RETURN):
             await state.update_data({_EDIT_RETURN: False})
@@ -365,12 +373,14 @@ def create_router() -> Router:
         if not isinstance(callback.message, Message):
             return
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         await _show_confirmation(callback.message, state)
 
     @router.callback_query(F.data == "sub:proof:wait", ExpenseSubmission.no_receipt_proof)
     async def wait_proof(callback: CallbackQuery) -> None:
         await callback.answer()
         if isinstance(callback.message, Message):
+            await _clear_inline_keyboard(callback.message)
             await callback.message.answer("Пришлите фото подтверждения.")
 
     @router.callback_query(F.data == "sub:send", ExpenseSubmission.confirm)
@@ -427,6 +437,7 @@ def create_router() -> Router:
         draft = await _load_draft(state)
         await state.set_state(ExpenseSubmission.edit_pick)
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         notice = f"\n{texts.EDIT_QR_LOCKED}" if draft.qr_locked else ""
         await callback.message.answer(
             f"{texts.EDIT_PICK}{notice}",
@@ -438,6 +449,7 @@ def create_router() -> Router:
         if not isinstance(callback.message, Message):
             return
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         await _show_confirmation(callback.message, state)
 
     @router.callback_query(F.data.startswith("sub:edit:"), ExpenseSubmission.edit_pick)
@@ -452,6 +464,7 @@ def create_router() -> Router:
         field = callback.data.rsplit(":", 1)[1]
         draft = await _load_draft(state)
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         if field == "amount":
             if draft.qr_locked:
                 await callback.message.answer(texts.EDIT_QR_LOCKED)
@@ -487,10 +500,17 @@ def create_router() -> Router:
         settings: Settings,
         user: User | None,
     ) -> None:
-        await state.clear()
+        current = await state.get_state()
         await callback.answer()
         if isinstance(callback.message, Message):
             await _clear_inline_keyboard(callback.message)
+        if current is None or not str(current).startswith(ExpenseSubmission.__name__):
+            # Stale «Отменить» under an old category/confirm message after submit.
+            if isinstance(callback.message, Message):
+                await callback.message.answer(texts.SUBMISSION_NOTHING_TO_CANCEL)
+            return
+        await state.clear()
+        if isinstance(callback.message, Message):
             menu = texts.menu(
                 user.role if user is not None else UserRole.EMPLOYEE,
                 allow_no_receipt=settings.allow_no_receipt,
@@ -501,7 +521,7 @@ def create_router() -> Router:
 
 
 async def _clear_inline_keyboard(message: Message) -> None:
-    """Remove Отправить / Исправить / Отменить from the confirmation card."""
+    """Strip inline buttons from a step message once the user moved on."""
     try:
         await message.edit_reply_markup(reply_markup=None)
     except TelegramAPIError:

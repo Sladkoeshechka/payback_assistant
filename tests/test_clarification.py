@@ -107,6 +107,7 @@ async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: As
     assert planfix.attach_calls == 1
     assert planfix.attachments == [(1000, 55)]
     assert planfix.comments == [(55, "Скан")]
+    assert notifier.cleared_keyboards == [(manager.id, 9001)]
     assert notifier.messages[0]["has_image"] is True
     assert notifier.messages[0]["reply_text"] == "Скан"
 
