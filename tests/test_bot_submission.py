@@ -244,6 +244,11 @@ async def test_employee_sends_photo_without_readable_qr(
         getattr(method, "text", None) == texts.SUBMITTED.format(task_id=100)
         for method in telegram_session.methods
     )
+    assert any(
+        type(method).__name__ == "EditMessageReplyMarkup"
+        and getattr(method, "reply_markup", "missing") is None
+        for method in telegram_session.methods
+    )
     assert await state.get_state() is None
 
     expense = (await session.scalars(select(Expense))).one()

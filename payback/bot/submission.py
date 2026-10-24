@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -408,10 +409,12 @@ def create_router() -> Router:
         except DuplicateReceiptError as error:
             await state.clear()
             await callback.answer()
+            await _clear_inline_keyboard(callback.message)
             await callback.message.answer(str(error))
             return
         await state.clear()
         await callback.answer()
+        await _clear_inline_keyboard(callback.message)
         if expense.status is ExpenseStatus.PENDING and expense.planfix_task_id is not None:
             await callback.message.answer(texts.SUBMITTED.format(task_id=expense.planfix_task_id))
         else:
@@ -487,6 +490,7 @@ def create_router() -> Router:
         await state.clear()
         await callback.answer()
         if isinstance(callback.message, Message):
+            await _clear_inline_keyboard(callback.message)
             menu = texts.menu(
                 user.role if user is not None else UserRole.EMPLOYEE,
                 allow_no_receipt=settings.allow_no_receipt,
@@ -494,6 +498,14 @@ def create_router() -> Router:
             await callback.message.answer(f"{texts.SUBMISSION_CANCELLED}\n{menu}")
 
     return router
+
+
+async def _clear_inline_keyboard(message: Message) -> None:
+    """Remove Отправить / Исправить / Отменить from the confirmation card."""
+    try:
+        await message.edit_reply_markup(reply_markup=None)
+    except TelegramAPIError:
+        return
 
 
 async def _begin_photo_submission(
