@@ -1,0 +1,15 @@
+.venv
+.git
+.gitignore
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+*.db
+.env
+docs/planfix-notes.md
+docs/api_requests/
+tests
+scripts

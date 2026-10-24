@@ -1,0 +1,48 @@
+# Stage 11 step 1: app + PostgreSQL (Caddy / HTTPS in step 2).
+# Usage: docker compose up --build -d
+# Health: curl http://127.0.0.1:8000/health
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payback
+      POSTGRES_PASSWORD: payback
+      POSTGRES_DB: payback
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payback -d payback"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # Compose Postgres wins over a local sqlite DATABASE_URL in .env.
+      DATABASE_URL: postgresql+asyncpg://payback:payback@db:5432/payback
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
