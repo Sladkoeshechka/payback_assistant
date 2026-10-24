@@ -27,6 +27,7 @@ from payback.services.ports import PlanfixPort
 logger = logging.getLogger(__name__)
 
 EXIT_BAD_CONFIG = 2
+EXIT_SIGINT = 130
 
 # Stable fake directory ids for offline DEV_MODE (no live Planfix).
 _DEV_CATEGORY_DIRECTORY_ID = 9001
@@ -128,49 +129,62 @@ async def main() -> int:
     try:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
-
-        session_factory = async_sessionmaker(engine, expire_on_commit=False)
-        bot = create_bot(settings)
-        try:
-            planfix, planfix_schema, live_client = await connect_planfix(settings)
-        except Exception:
-            logger.exception("Planfix schema validation failed")
-            await bot.session.close()
-            return 1
-
-        directory_cache = DirectoryCache(planfix)
-        notifier = TelegramNotifier(bot)
-        dispatcher = create_dispatcher(
-            settings,
-            session_factory,
-            planfix=planfix,
-            directory_cache=directory_cache,
-            planfix_schema=planfix_schema,
-            notifier=notifier,
-        )
-
-        app = create_app(
-            settings,
-            session_factory=session_factory,
-            planfix=planfix,
-            notifier=notifier,
-            bot=bot,
-            dispatcher=dispatcher,
-            live_planfix_client=live_client,
-        )
-        server = uvicorn.Server(
-            uvicorn.Config(
-                app,
-                host="0.0.0.0",
-                port=8000,
-                log_config=None,
-            )
-        )
-        await server.serve()
-        return 0 if server.started else 1
-    finally:
+    except Exception:
         await engine.dispose()
+        raise
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    bot = create_bot(settings)
+    try:
+        planfix, planfix_schema, live_client = await connect_planfix(settings)
+    except Exception:
+        logger.exception("Planfix schema validation failed")
+        await bot.session.close()
+        await engine.dispose()
+        return 1
+
+    directory_cache = DirectoryCache(planfix)
+    notifier = TelegramNotifier(bot)
+    dispatcher = create_dispatcher(
+        settings,
+        session_factory,
+        planfix=planfix,
+        directory_cache=directory_cache,
+        planfix_schema=planfix_schema,
+        notifier=notifier,
+    )
+    app = create_app(
+        settings,
+        session_factory=session_factory,
+        engine=engine,
+        planfix=planfix,
+        notifier=notifier,
+        bot=bot,
+        dispatcher=dispatcher,
+        live_planfix_client=live_client,
+    )
+    # Lifespan owns engine/bot/planfix teardown while the server is running.
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            log_config=None,
+        )
+    )
+    try:
+        await server.serve()
+    except asyncio.CancelledError:
+        # SIGINT replay after uvicorn's graceful lifespan shutdown — normal stop.
+        return 0
+    if not server.started:
+        await engine.dispose()
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(main()))
+    try:
+        raise SystemExit(asyncio.run(main()))
+    except KeyboardInterrupt:
+        raise SystemExit(EXIT_SIGINT) from None
