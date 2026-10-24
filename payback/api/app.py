@@ -1,9 +1,12 @@
-"""FastAPI application factory (stage 9A/9B/9C)."""
+"""FastAPI application factory (stage 9A-9E)."""
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+from typing import Any
 
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -13,15 +16,42 @@ from payback.api.webhooks import create_router as create_webhook_router
 from payback.config import Settings, get_settings
 from payback.services.ports import NotifierPort, PlanfixPort
 
+logger = logging.getLogger(__name__)
+
+
+def _on_polling_done(task: asyncio.Task[Any]) -> None:
+    if task.cancelled():
+        return
+    try:
+        task.result()
+    except Exception:
+        logger.exception("telegram polling crashed")
+
 
 @asynccontextmanager
-async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Process lifespan placeholder.
-
-    Stage 9E will start PlanFix schema checks and aiogram polling here, and wait
-    for background tasks on shutdown. Until then the API can be tested alone.
-    """
-    yield
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Start/stop aiogram polling in the same event loop as FastAPI (stage 9E)."""
+    bot = getattr(app.state, "bot", None)
+    dispatcher = getattr(app.state, "dispatcher", None)
+    if bot is not None and dispatcher is not None:
+        await bot.get_me()
+        await bot.delete_webhook(drop_pending_updates=True)
+        polling_task = asyncio.create_task(dispatcher.start_polling(bot))
+        polling_task.add_done_callback(_on_polling_done)
+        app.state.polling_task = polling_task
+    try:
+        yield
+    finally:
+        current_polling_task = getattr(app.state, "polling_task", None)
+        if current_polling_task is not None and not current_polling_task.done():
+            current_polling_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await current_polling_task
+        live_planfix = getattr(app.state, "live_planfix_client", None)
+        if live_planfix is not None:
+            await live_planfix.aclose()
+        if bot is not None:
+            await bot.session.close()
 
 
 def create_app(
@@ -30,6 +60,9 @@ def create_app(
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     planfix: PlanfixPort | None = None,
     notifier: NotifierPort | None = None,
+    bot: Any | None = None,
+    dispatcher: Any | None = None,
+    live_planfix_client: Any | None = None,
 ) -> FastAPI:
     """Build the HTTP app (health + PlanFix webhook intake)."""
     settings = settings if settings is not None else get_settings()
@@ -41,6 +74,10 @@ def create_app(
     app.state.planfix = planfix
     app.state.notifier = notifier
     app.state.status_ids = settings.planfix.statuses
+    app.state.bot = bot
+    app.state.dispatcher = dispatcher
+    app.state.live_planfix_client = live_planfix_client
+    app.state.polling_task = None
     app.include_router(create_webhook_router())
 
     @app.get("/health")

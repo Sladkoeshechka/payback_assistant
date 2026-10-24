@@ -237,9 +237,7 @@ async def test_apply_unknown_status_id_uses_name_only_as_hint(
     planfix.seed_task(55, status_id=999_999)
     notifier = FakeNotifier()
 
-    result = await _service(session, planfix, notifier).apply(
-        55, webhook_status_name="Одобрено"
-    )
+    result = await _service(session, planfix, notifier).apply(55, webhook_status_name="Одобрено")
     await session.commit()
 
     assert result is None

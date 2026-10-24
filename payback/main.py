@@ -1,20 +1,16 @@
-"""Entry point.
-
-For now it loads settings, sets up logging and reports what it found. The Planfix
-schema check arrives with the API client (docs/plan.md §4) and the FastAPI app plus
-the aiogram polling task arrive with the webhooks (§9) — until then this must not
-pretend to start a bot.
-"""
+"""Process entry point: FastAPI + aiogram polling in one event loop (stage 9E)."""
 
 import asyncio
 import logging
 import sys
 from typing import Any
 
+import uvicorn
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from payback import __version__
+from payback.api import create_app
 from payback.bot.app import create_bot, create_dispatcher
 from payback.bot.notifier import TelegramNotifier
 from payback.config import Settings, get_settings
@@ -129,56 +125,51 @@ async def main() -> int:
     logger.info("payback starting", extra=describe(settings))
 
     engine = build_engine(settings.database_url)
-
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    bot = create_bot(settings)
     try:
-        planfix, planfix_schema, live_client = await connect_planfix(settings)
-    except Exception:
-        logger.exception("Planfix schema validation failed")
-        await bot.session.close()
-        return 1
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
 
-    directory_cache = DirectoryCache(planfix)
-    notifier = TelegramNotifier(bot)
-    dp = create_dispatcher(
-        settings,
-        session_factory,
-        planfix=planfix,
-        directory_cache=directory_cache,
-        planfix_schema=planfix_schema,
-        notifier=notifier,
-    )
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        bot = create_bot(settings)
+        try:
+            planfix, planfix_schema, live_client = await connect_planfix(settings)
+        except Exception:
+            logger.exception("Planfix schema validation failed")
+            await bot.session.close()
+            return 1
 
-    try:
-        me = await bot.get_me()
-        logger.info("Бот подключен: @%s (id=%s)", me.username, me.id)
-    except Exception:
-        logger.exception("He удалось подключиться к Telegram. Проверьте конфигурацию.")
-        if live_client is not None:
-            await live_client.aclose()
-        await bot.session.close()
-        return 1
+        directory_cache = DirectoryCache(planfix)
+        notifier = TelegramNotifier(bot)
+        dispatcher = create_dispatcher(
+            settings,
+            session_factory,
+            planfix=planfix,
+            directory_cache=directory_cache,
+            planfix_schema=planfix_schema,
+            notifier=notifier,
+        )
 
-    # Ha всякий случай чистим вебхуки перед стартом пуллинга
-    await bot.delete_webhook(drop_pending_updates=True)
-
-    # 4. Запускаем бесконечный цикл пуллинга (блокирующий вызов)
-    try:
-        logger.info("Пуллинг Telegram запущен")
-        await dp.start_polling(bot)
+        app = create_app(
+            settings,
+            session_factory=session_factory,
+            planfix=planfix,
+            notifier=notifier,
+            bot=bot,
+            dispatcher=dispatcher,
+            live_planfix_client=live_client,
+        )
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host="0.0.0.0",
+                port=8000,
+                log_config=None,
+            )
+        )
+        await server.serve()
+        return 0 if server.started else 1
     finally:
-        # Корректное закрытие ресурсов при остановке (Ctrl+C / docker stop)
-        if live_client is not None:
-            await live_client.aclose()
-        await bot.session.close()
-        logger.info("Бот остановлен")
-
-    return 0
+        await engine.dispose()
 
 
 if __name__ == "__main__":
