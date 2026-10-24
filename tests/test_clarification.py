@@ -80,6 +80,8 @@ async def test_reply_text_moves_to_pending_and_renotifies(
     assert planfix.upload_calls == 0
     assert len(notifier.messages) == 1
     assert notifier.messages[0]["expense_id"] == expense.id
+    assert notifier.messages[0]["reply_text"] == "Вот чек из почты"
+    assert notifier.cleared_keyboards == [(manager.id, 9001)]
     assert result.manager_message_id == notifier.messages[0]["message_id"]
     assert result.manager_message_id != 9001
 
@@ -106,6 +108,7 @@ async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: As
     assert planfix.attachments == [(1000, 55)]
     assert planfix.comments == [(55, "Скан")]
     assert notifier.messages[0]["has_image"] is True
+    assert notifier.messages[0]["reply_text"] == "Скан"
 
 
 async def test_reply_photo_without_caption_uses_default_comment(

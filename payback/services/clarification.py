@@ -62,12 +62,19 @@ class ClarificationService:
         # Commit before Telegram notify so a send failure cannot undo PlanFix.
         await self._expenses.commit()
         if manager is not None:
+            reply_for_manager = text if text is not None else "Ответ сотрудника (фото)"
             try:
+                if expense.manager_message_id is not None:
+                    await self._notifier.clear_manager_decision_keyboard(
+                        manager=manager,
+                        message_id=expense.manager_message_id,
+                    )
                 message_id = await self._notifier.notify_manager_expense_card(
                     manager=manager,
                     employee=employee,
                     expense=expense,
                     image_bytes=image_bytes,
+                    reply_text=reply_for_manager,
                 )
             except Exception:
                 logger.exception(

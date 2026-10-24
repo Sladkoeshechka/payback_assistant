@@ -159,6 +159,7 @@ class FakeNotifier:
         employee: User,
         expense: Expense,
         image_bytes: bytes | None,
+        reply_text: str | None = None,
     ) -> int:
         message_id = self._next_message_id
         self._next_message_id += 1
@@ -168,7 +169,9 @@ class FakeNotifier:
                 "manager_id": manager.id,
                 "employee_id": employee.id,
                 "expense_id": expense.id,
-                "has_image": image_bytes is not None,
+                "has_image": image_bytes is not None
+                or (image_bytes is None and expense.telegram_file_id is not None),
+                "reply_text": reply_text,
             }
         )
         return message_id

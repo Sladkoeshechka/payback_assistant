@@ -87,6 +87,7 @@ MANAGER_NEW_EXPENSE = (
     "Направление: {direction}\n"
     "Комментарий: {comment}"
 )
+MANAGER_CLARIFICATION_REPLY = "Ответ сотрудника:\n{reply}"
 MANAGER_NO_RECEIPT_MARK = "⚠️ Без кассового чека"
 
 _STATUS_LABELS = {
@@ -248,6 +249,7 @@ def manager_expense_card(
     *,
     employee: User,
     expense: Expense,
+    reply_text: str | None = None,
 ) -> str:
     """Caption / body for the manager notification (spec §4.3)."""
     direction = expense.direction_name or "—"
@@ -262,6 +264,8 @@ def manager_expense_card(
     )
     if expense.no_receipt:
         text = f"{text}\n{MANAGER_NO_RECEIPT_MARK}"
+    if reply_text:
+        text = f"{text}\n\n{MANAGER_CLARIFICATION_REPLY.format(reply=escape(reply_text))}"
     return text
 
 
@@ -315,6 +319,7 @@ __all__ = [
     "INVITE_CREATED",
     "INVITE_PROMPT",
     "INVITE_REVOKED",
+    "MANAGER_CLARIFICATION_REPLY",
     "MANAGER_NEW_EXPENSE",
     "MANAGER_NO_RECEIPT_MARK",
     "MANAGER_ONLY",

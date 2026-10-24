@@ -27,13 +27,23 @@ class TelegramNotifier:
         employee: User,
         expense: Expense,
         image_bytes: bytes | None,
+        reply_text: str | None = None,
     ) -> int:
-        caption = texts.manager_expense_card(employee=employee, expense=expense)
+        caption = texts.manager_expense_card(
+            employee=employee, expense=expense, reply_text=reply_text
+        )
         markup = manager_decision_keyboard(expense.id)
         if image_bytes is not None:
             message = await self._bot.send_photo(
                 chat_id=manager.telegram_id,
                 photo=BufferedInputFile(image_bytes, filename="receipt.jpg"),
+                caption=caption,
+                reply_markup=markup,
+            )
+        elif expense.telegram_file_id is not None:
+            message = await self._bot.send_photo(
+                chat_id=manager.telegram_id,
+                photo=expense.telegram_file_id,
                 caption=caption,
                 reply_markup=markup,
             )

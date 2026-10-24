@@ -33,6 +33,7 @@ class NotifierPort(Protocol):
         employee: User,
         expense: Expense,
         image_bytes: bytes | None,
+        reply_text: str | None = None,
     ) -> int:
         """Send (or re-send) the manager card with decision buttons; return message id."""
         ...

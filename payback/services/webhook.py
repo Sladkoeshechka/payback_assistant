@@ -112,7 +112,10 @@ class WebhookService:
         # Commit before Telegram side effects: HTTP 200 already went out, and a
         # notify failure must not leave local status behind PlanFix.
         await self._expenses.commit()
-        await self._mark_manager_card(expense)
+        # Returning to "pending" (e.g. employee clarified) is not a PlanFix decision —
+        # the bot re-sends a fresh card; do not stamp the old one as decided.
+        if new_status is not ExpenseStatus.PENDING:
+            await self._mark_manager_card(expense)
         await self._notify_employee(expense, detail=detail)
         return expense
 
