@@ -71,9 +71,7 @@ class ApprovalService:
         )
         await self._expenses.set_status(expense, ExpenseStatus.CLARIFICATION)
         await self._expenses.commit()
-        await self._finish_ui(
-            manager=manager, employee=employee, expense=expense, detail=question
-        )
+        await self._finish_ui(manager=manager, employee=employee, expense=expense, detail=question)
         return expense
 
     async def _load_pending_for_manager(

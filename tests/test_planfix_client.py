@@ -1,3 +1,5 @@
+# ruff: noqa: RUF001
+
 import json
 
 import httpx
@@ -185,6 +187,41 @@ async def test_logical_failures_have_specific_errors(planfix_settings: Settings)
     with pytest.raises(PlanfixError):
         await client.get_task(404)
     assert route.call_count == 3
+    await client.aclose()
+
+
+@respx.mock
+async def test_list_object_statuses(planfix_settings: Settings) -> None:
+    route = respx.get("https://example.planfix.ru/rest/object/17/statuses").mock(
+        return_value=httpx.Response(200, json=load_fixture("object_statuses"))
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    statuses = await client.list_object_statuses()
+
+    assert statuses[1]["id"] == 101
+    assert statuses[1]["name"] == "На согласовании"
+    assert route.calls[0].request.url.params["fields"] == "id,name,isActive,texts"
+    await client.aclose()
+
+
+@respx.mock
+async def test_list_objects(planfix_settings: Settings) -> None:
+    respx.post("https://example.planfix.ru/rest/object/list").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "success",
+                "objects": [{"id": 17, "name": "Расход"}, {"id": 1, "name": "Стандартный"}],
+            },
+        )
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    objects = await client.list_objects()
+
+    assert objects[0]["id"] == 17
+    assert objects[0]["name"] == "Расход"
     await client.aclose()
 
 

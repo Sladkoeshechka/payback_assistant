@@ -159,6 +159,29 @@ class PlanfixClient:
             raise PlanfixError("Planfix returned malformed task fields")
         return [field for field in fields if isinstance(field, dict)]
 
+    async def list_objects(self) -> list[dict[str, Any]]:
+        """Return Objects available in the account (id + name)."""
+        response = await self._request(
+            "POST", "/object/list", json={"offset": 0, "pageSize": _PAGE_SIZE}
+        )
+        objects = response.get("objects", [])
+        if not isinstance(objects, list):
+            raise PlanfixError("Planfix returned malformed objects")
+        return [item for item in objects if isinstance(item, dict)]
+
+    async def list_object_statuses(self, object_id: int | None = None) -> list[dict[str, Any]]:
+        """Return status definitions for an Object (id, name, isActive, texts)."""
+        target = self._object_id if object_id is None else object_id
+        response = await self._request(
+            "GET",
+            f"/object/{target}/statuses",
+            params={"fields": "id,name,isActive,texts"},
+        )
+        statuses = response.get("statuses", [])
+        if not isinstance(statuses, list):
+            raise PlanfixError("Planfix returned malformed object statuses")
+        return [status for status in statuses if isinstance(status, dict)]
+
     async def get_directory(self, directory_id: int) -> PlanfixDirectory:
         response = await self._request(
             "GET", f"/directory/{directory_id}", params={"fields": "id,name,fields"}

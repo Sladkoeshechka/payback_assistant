@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 .PHONY: help sync install lint format typecheck test check run show-db reset-db \
-	docker-up docker-down docker-logs docker-build
+	planfix-ids docker-up docker-down docker-logs docker-build
 
 help:
 	@grep -hE '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | expand -t20
@@ -34,6 +34,9 @@ show-db: ## Print users, invites, and expenses from DATABASE_URL
 
 reset-db: ## Wipe and recreate all tables (requires confirmation flag)
 	uv run python scripts/reset_db.py --yes
+
+planfix-ids: ## Print PLANFIX_FIELD_* / PLANFIX_STATUS_* (PAYBACK_ENV_FILE or ./.env)
+	uv run python scripts/planfix_ids.py
 
 docker-build: ## Build the app image
 	docker compose build
