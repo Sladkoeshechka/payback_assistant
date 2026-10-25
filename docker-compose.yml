@@ -1,6 +1,8 @@
-# Stage 11 step 1: app + PostgreSQL (Caddy / HTTPS in step 2).
-# Usage: docker compose up --build -d
-# Health: curl http://127.0.0.1:8000/health
+# Stage 11: app + PostgreSQL + Caddy (HTTPS for PlanFix webhooks).
+# Env file (default ./.env): bot secrets + DOMAIN. Optional override:
+#   export PAYBACK_ENV_FILE=$HOME/.config/payback/env
+#   docker compose up --build -d
+# Health: curl https://<DOMAIN from env>/health
 
 services:
   db:
@@ -21,11 +23,13 @@ services:
   app:
     build: .
     env_file:
-      - ${PAYBACK_ENV_FILE}
+      - ${PAYBACK_ENV_FILE:-.env}
     environment:
+      # Compose Postgres wins over a local sqlite DATABASE_URL in the env file.
       DATABASE_URL: postgresql+asyncpg://payback:payback@db:5432/payback
-    ports:
-      - "8000:8000"
+    # Reachable only on the Docker network; Caddy publishes 80/443.
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -43,5 +47,23 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2-alpine
+    env_file:
+      - ${PAYBACK_ENV_FILE:-.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

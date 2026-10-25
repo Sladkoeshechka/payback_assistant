@@ -38,7 +38,7 @@ reset-db: ## Wipe and recreate all tables (requires confirmation flag)
 docker-build: ## Build the app image
 	docker compose build
 
-docker-up: ## Start app + Postgres (stage 11 step 1)
+docker-up: ## Start app + Postgres + Caddy (DOMAIN in env file; optional PAYBACK_ENV_FILE)
 	docker compose up --build -d
 
 docker-down: ## Stop compose services

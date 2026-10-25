@@ -1,0 +1,6 @@
+# Public HTTPS front door (Let's Encrypt when DOMAIN is a real hostname).
+# DOMAIN comes from the compose env file (see .env.example).
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:8000
+}
