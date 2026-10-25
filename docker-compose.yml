@@ -21,9 +21,8 @@ services:
   app:
     build: .
     env_file:
-      - .env
+      - ${PAYBACK_ENV_FILE}
     environment:
-      # Compose Postgres wins over a local sqlite DATABASE_URL in .env.
       DATABASE_URL: postgresql+asyncpg://payback:payback@db:5432/payback
     ports:
       - "8000:8000"
