@@ -28,10 +28,10 @@
 4. Разобрать формат `POST /task/{id}/comments/list`: автор, служебный/человеческий комментарий, порядок сортировки.
 5. Проверить `POST /task/list` с фильтром по Объекту и периоду (нужен для `/report` в roadmap, но формат фильтра лучше снять сейчас).
 6. Проверить поведение повторов вебхука при ответе ≠ 200.
-7. Сохранить `swagger.json` в репозиторий.
+7. OpenAPI ПланФикса **не** класть в репозиторий (чужая спека): при необходимости смотреть https://help.planfix.com/restapidocs/swagger.json .
 8. **Снять фикстуры** в `tests/fixtures/planfix/`: успешные и ошибочные ответы на каждый метод из `planfix-notes.md` §6 — создание задачи, чтение задачи с customFieldData, смена статуса, загрузка и прикрепление файла, добавление и чтение комментариев, `user/list`, `customfield/task`, `directory/{id}`, `directory/{id}/entry/list`, ответ 202, ответ `{"result":"fail"}`, scope denied.
 
-**Артефакты:** `scripts/try_planfix.sh` (без токенов), `docs/planfix-api/swagger.json`, `tests/fixtures/planfix/*.json`, обновлённые §10–11 в `planfix-notes.md`.
+**Артефакты:** `scripts/try_planfix.sh` (без токенов), `tests/fixtures/planfix/*.json`, обновлённые §10–11 в `planfix-notes.md`.
 
 **Критерий готовности:** список «Осталось проверить» в `planfix-notes.md` пуст или каждый пункт помечен как сознательно отложенный; клиент ПланФикса можно писать и тестировать без доступа к аккаунту.
 
