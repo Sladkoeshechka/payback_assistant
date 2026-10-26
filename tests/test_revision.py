@@ -66,7 +66,7 @@ async def test_reply_text_moves_to_approved(env: dict[str, str], session: AsyncS
     await session.commit()
 
     assert result.status is ExpenseStatus.APPROVED
-    assert planfix.comments == [(55, "Приложил счет")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nПриложил счет")]
     assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.approved}})]
     assert planfix.upload_calls == 0
 
@@ -86,7 +86,7 @@ async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: As
     assert result.status is ExpenseStatus.APPROVED
     assert planfix.upload_calls == 1
     assert planfix.attach_calls == 1
-    assert planfix.comments == [(55, "Скан")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nСкан")]
 
 
 async def test_reply_when_not_needs_revision_raises(

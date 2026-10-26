@@ -36,7 +36,7 @@ async def test_employee_text_reply_returns_to_pending(
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.PENDING
-    assert planfix.comments == [(55, "Приложил выписку")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nПриложил выписку")]
     assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.pending}}
     assert len(notifier.messages) == 1
     assert expense.manager_message_id == notifier.messages[0]["message_id"]
@@ -69,7 +69,7 @@ async def test_employee_photo_reply_attaches_file(
     assert expense.status is ExpenseStatus.PENDING
     assert planfix.upload_calls == 1
     assert planfix.attach_calls == 1
-    assert planfix.comments == [(55, "скан")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nскан")]
     assert notifier.messages[0]["has_image"] is True
 
 
@@ -204,7 +204,7 @@ async def test_employee_text_reply_second_time(
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.PENDING
-    assert planfix.comments == [(55, "Приложил выписку")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nПриложил выписку")]
     assert len(planfix.task_updates) == 1
     assert len(notifier.messages) == 1
     assert expense.manager_message_id == notifier.messages[0]["message_id"]

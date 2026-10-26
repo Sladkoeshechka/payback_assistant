@@ -38,7 +38,7 @@ async def test_employee_text_reply_returns_to_approved(
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.APPROVED
-    assert planfix.comments == [(55, "Исправил документы")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nИсправил документы")]
     assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.approved}})]
     assert any(
         getattr(method, "text", None) == texts.REVISION_REPLY_SENT
@@ -104,7 +104,7 @@ async def test_employee_revision_photo_reply(
     file_id, task_id = planfix.attachments[0]
     assert task_id == 55
     assert planfix.files[file_id] == _RECEIPT.read_bytes()
-    assert planfix.comments == [(55, "скан")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nскан")]
     assert len(notifier.messages) == 0
 
 

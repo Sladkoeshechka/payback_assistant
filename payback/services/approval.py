@@ -5,6 +5,7 @@ import logging
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
+from payback.services.planfix_text import attributed_comment
 from payback.services.ports import NotifierPort, PlanfixPort
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class ApprovalService:
         await self._push_planfix(
             expense,
             status_id=self._status_ids.rejected,
-            comment=f"Причина отказа: {reason}",
+            comment=attributed_comment(manager, f"Причина отказа: {reason}"),
         )
         await self._expenses.set_status(expense, ExpenseStatus.REJECTED)
         await self._expenses.commit()
@@ -67,7 +68,7 @@ class ApprovalService:
         await self._push_planfix(
             expense,
             status_id=self._status_ids.clarification,
-            comment=question,
+            comment=attributed_comment(manager, question),
         )
         await self._expenses.set_status(expense, ExpenseStatus.CLARIFICATION)
         await self._expenses.commit()

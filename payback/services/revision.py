@@ -3,6 +3,7 @@
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
+from payback.services.planfix_text import attributed_comment
 from payback.services.ports import PlanfixPort
 
 
@@ -44,6 +45,7 @@ class RevisionService:
 
         await self._push_planfix(
             expense,
+            employee=employee,
             text=text,
             image_bytes=image_bytes,
             image_filename=image_filename,
@@ -58,6 +60,7 @@ class RevisionService:
         self,
         expense: Expense,
         *,
+        employee: User,
         text: str | None,
         image_bytes: bytes | None,
         image_filename: str,
@@ -73,8 +76,8 @@ class RevisionService:
                 content_type=image_content_type,
             )
             await self._planfix.attach_file(file_id, task_id)
-        comment = text if text is not None else "Ответ сотрудника (фото)"
-        await self._planfix.add_comment(task_id, comment)
+        body = text if text is not None else "(фото)"
+        await self._planfix.add_comment(task_id, attributed_comment(employee, body))
         await self._planfix.update_task(task_id, {"status": {"id": self._status_ids.approved}})
 
 

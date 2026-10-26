@@ -75,7 +75,7 @@ async def test_reply_text_moves_to_pending_and_renotifies(
     await session.commit()
 
     assert result.status is ExpenseStatus.PENDING
-    assert planfix.comments == [(55, "Вот чек из почты")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nВот чек из почты")]
     assert planfix.task_updates == [(55, {"status": {"id": settings.planfix.statuses.pending}})]
     assert planfix.upload_calls == 0
     assert len(notifier.messages) == 1
@@ -106,7 +106,7 @@ async def test_reply_photo_uploads_and_attaches(env: dict[str, str], session: As
     assert planfix.upload_calls == 1
     assert planfix.attach_calls == 1
     assert planfix.attachments == [(1000, 55)]
-    assert planfix.comments == [(55, "Скан")]
+    assert planfix.comments == [(55, "Ada Lovelace:\nСкан")]
     assert notifier.cleared_keyboards == [(manager.id, 9001)]
     assert notifier.messages[0]["has_image"] is True
     assert notifier.messages[0]["reply_text"] == "Скан"
@@ -127,7 +127,7 @@ async def test_reply_photo_without_caption_uses_default_comment(
     )
     await session.commit()
 
-    assert planfix.comments == [(55, "Ответ сотрудника (фото)")]
+    assert planfix.comments == [(55, "Ada Lovelace:\n(фото)")]
 
 
 async def test_reply_when_not_clarification_raises(
