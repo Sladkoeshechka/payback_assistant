@@ -13,9 +13,13 @@ NOTIFY_EMPLOYEE_REJECTED_NO_DETAIL = "Заявка №{task_id} отклонен
 NOTIFY_EMPLOYEE_CLARIFICATION = "По заявке №{task_id} нужен ответ.\nВопрос: {detail}"
 NOTIFY_EMPLOYEE_CLARIFICATION_NO_DETAIL = "По заявке №{task_id} нужен ответ."
 NOTIFY_EMPLOYEE_NEEDS_REVISION = (
-    "По заявке №{task_id} нужна доработка.\nКомментарий бухгалтера: {detail}"
+    "По заявке №{task_id} нужна доработка.\n"
+    "Комментарий бухгалтера: {detail}\n"
+    "Ответьте текстом или фото в этот чат."
 )
-NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL = "По заявке №{task_id} нужна доработка."
+NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL = (
+    "По заявке №{task_id} нужна доработка.\nОтветьте текстом или фото в этот чат."
+)
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",

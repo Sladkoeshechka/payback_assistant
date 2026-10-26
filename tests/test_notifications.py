@@ -47,7 +47,8 @@ def test_format_employee_decision_needs_revision_includes_detail() -> None:
 def test_format_employee_decision_needs_revision_without_detail() -> None:
     text = format_employee_decision(expense=_expense(ExpenseStatus.NEEDS_REVISION))
 
-    assert text == "По заявке №55 нужна доработка."
+    assert "По заявке №55 нужна доработка." in text
+    assert "Ответьте текстом или фото в этот чат." in text
     assert "—" not in text
 
 
