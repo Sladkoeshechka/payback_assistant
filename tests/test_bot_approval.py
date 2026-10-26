@@ -136,7 +136,7 @@ async def test_reject_with_reason(
 
     await session.refresh(expense)
     assert expense.status is ExpenseStatus.REJECTED
-    assert planfix.comments == [(55, "Grace Hopper:\nПричина отказа: не по политике")]
+    assert planfix.comments == [(55, "Grace Hopper:\nПричина отказа: не по политике", "user:7")]
     assert notifier.employee_messages[0]["detail"] == "не по политике"
 
 

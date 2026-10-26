@@ -130,7 +130,7 @@ async def test_reject_writes_comment_and_reason(env: dict[str, str], session: As
 
     assert result.status is ExpenseStatus.REJECTED
     assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.rejected}}
-    assert planfix.comments == [(55, "Grace Hopper:\nПричина отказа: личная покупка")]
+    assert planfix.comments == [(55, "Grace Hopper:\nПричина отказа: личная покупка", "user:7")]
     assert notifier.employee_messages[0]["detail"] == "личная покупка"
 
 
@@ -148,7 +148,7 @@ async def test_ask_moves_to_clarification(env: dict[str, str], session: AsyncSes
 
     assert result.status is ExpenseStatus.CLARIFICATION
     assert planfix.task_updates[0][1] == {"status": {"id": settings.planfix.statuses.clarification}}
-    assert planfix.comments == [(55, "Grace Hopper:\nЕсть чек?")]
+    assert planfix.comments == [(55, "Grace Hopper:\nЕсть чек?", "user:7")]
     assert notifier.employee_messages[0]["detail"] == "Есть чек?"
 
 

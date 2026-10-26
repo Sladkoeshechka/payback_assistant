@@ -143,8 +143,8 @@ async def test_apply_rejected_reads_latest_comment(
     settings = Settings()
     planfix = FakePlanfix()
     planfix.seed_task(55, status_id=settings.planfix.statuses.rejected)
-    planfix.comments.append((55, "старый комментарий"))
-    planfix.comments.append((55, "личная покупка"))
+    planfix.add_seed_comment(55, "старый комментарий")
+    planfix.add_seed_comment(55, "личная покупка")
     notifier = FakeNotifier()
 
     result = await _service(session, planfix, notifier).apply(55, webhook_status_name="Отклонено")
@@ -155,6 +155,76 @@ async def test_apply_rejected_reads_latest_comment(
     assert planfix.list_comments_calls == 1
     assert planfix.comment_list_requests == [(0, 1)]
     assert notifier.employee_messages[0]["detail"] == "личная покупка"
+
+
+async def test_apply_needs_revision_reads_latest_comment(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    _, employee = await _people(session)
+    await _pending_expense(session, employee.id)
+    settings = Settings()
+    planfix = FakePlanfix()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.needs_revision)
+    planfix.add_seed_comment(55, "<p>приложите чек</p>")
+    notifier = FakeNotifier()
+
+    result = await _service(session, planfix, notifier).apply(
+        55, webhook_status_name="Требует доработки"
+    )
+    await session.commit()
+
+    assert result is not None
+    assert result.status is ExpenseStatus.NEEDS_REVISION
+    assert planfix.list_comments_calls == 1
+    assert planfix.comment_list_requests == [(0, 1)]
+    assert notifier.employee_messages[0]["detail"] == "приложите чек"
+
+
+async def test_apply_needs_revision_skips_robot_comments(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    _, employee = await _people(session)
+    await _pending_expense(session, employee.id)
+    settings = Settings()
+    planfix = FakePlanfix()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.needs_revision)
+    planfix.add_seed_comment(55, "комментарий бухгалтера", owner_id="user:5")
+    planfix.add_seed_comment(
+        55, "Grace Hopper:\nстарый ответ бота", owner_id=planfix.robot_owner_id
+    )
+    notifier = FakeNotifier()
+
+    result = await _service(session, planfix, notifier).apply(
+        55, webhook_status_name="Требует доработки"
+    )
+    await session.commit()
+
+    assert result is not None
+    assert result.status is ExpenseStatus.NEEDS_REVISION
+    # Newest is robot → skip; next page is accountant.
+    assert planfix.comment_list_requests == [(0, 1), (1, 1)]
+    assert notifier.employee_messages[0]["detail"] == "комментарий бухгалтера"
+
+
+async def test_apply_needs_revision_without_human_comment(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    _, employee = await _people(session)
+    await _pending_expense(session, employee.id)
+    settings = Settings()
+    planfix = FakePlanfix()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.needs_revision)
+    planfix.add_seed_comment(55, "только робот", owner_id=planfix.robot_owner_id)
+    notifier = FakeNotifier()
+
+    result = await _service(session, planfix, notifier).apply(
+        55, webhook_status_name="Требует доработки"
+    )
+    await session.commit()
+
+    assert result is not None
+    assert result.status is ExpenseStatus.NEEDS_REVISION
+    assert notifier.employee_messages[0]["detail"] is None
 
 
 async def test_apply_to_pay_does_not_notify_employee(

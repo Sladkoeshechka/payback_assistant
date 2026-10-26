@@ -9,7 +9,13 @@ from payback.db.models import Expense, ExpenseStatus, User
 
 NOTIFY_EMPLOYEE_APPROVED = "Заявка №{task_id} одобрена."
 NOTIFY_EMPLOYEE_REJECTED = "Заявка №{task_id} отклонена.\nПричина: {detail}"
+NOTIFY_EMPLOYEE_REJECTED_NO_DETAIL = "Заявка №{task_id} отклонена."
 NOTIFY_EMPLOYEE_CLARIFICATION = "По заявке №{task_id} нужен ответ.\nВопрос: {detail}"
+NOTIFY_EMPLOYEE_CLARIFICATION_NO_DETAIL = "По заявке №{task_id} нужен ответ."
+NOTIFY_EMPLOYEE_NEEDS_REVISION = (
+    "По заявке №{task_id} нужна доработка.\nКомментарий бухгалтера: {detail}"
+)
+NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL = "По заявке №{task_id} нужна доработка."
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",
@@ -67,13 +73,21 @@ def format_employee_decision(*, expense: Expense, detail: str | None = None) -> 
     """Build the Telegram text for an employee status/decision notification."""
     task_id = expense.planfix_task_id if expense.planfix_task_id is not None else expense.id
     # Bot default parse mode is HTML; PlanFix/manager text may contain <>& .
-    safe_detail = escape(detail) if detail else "—"
+    safe_detail = escape(detail) if detail else None
     if expense.status is ExpenseStatus.APPROVED:
         return NOTIFY_EMPLOYEE_APPROVED.format(task_id=task_id)
     if expense.status is ExpenseStatus.REJECTED:
+        if safe_detail is None:
+            return NOTIFY_EMPLOYEE_REJECTED_NO_DETAIL.format(task_id=task_id)
         return NOTIFY_EMPLOYEE_REJECTED.format(task_id=task_id, detail=safe_detail)
     if expense.status is ExpenseStatus.CLARIFICATION:
+        if safe_detail is None:
+            return NOTIFY_EMPLOYEE_CLARIFICATION_NO_DETAIL.format(task_id=task_id)
         return NOTIFY_EMPLOYEE_CLARIFICATION.format(task_id=task_id, detail=safe_detail)
+    if expense.status is ExpenseStatus.NEEDS_REVISION:
+        if safe_detail is None:
+            return NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL.format(task_id=task_id)
+        return NOTIFY_EMPLOYEE_NEEDS_REVISION.format(task_id=task_id, detail=safe_detail)
     label = _STATUS_LABELS[expense.status]
     return f"Статус заявки №{task_id}: {label}"
 
@@ -81,7 +95,11 @@ def format_employee_decision(*, expense: Expense, detail: str | None = None) -> 
 __all__ = [
     "NOTIFY_EMPLOYEE_APPROVED",
     "NOTIFY_EMPLOYEE_CLARIFICATION",
+    "NOTIFY_EMPLOYEE_CLARIFICATION_NO_DETAIL",
+    "NOTIFY_EMPLOYEE_NEEDS_REVISION",
+    "NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL",
     "NOTIFY_EMPLOYEE_REJECTED",
+    "NOTIFY_EMPLOYEE_REJECTED_NO_DETAIL",
     "NotifierPort",
     "format_employee_decision",
 ]

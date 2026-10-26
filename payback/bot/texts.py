@@ -11,6 +11,7 @@ from payback.services.draft import SubmissionDraft
 from payback.services.notifications import (
     NOTIFY_EMPLOYEE_APPROVED,
     NOTIFY_EMPLOYEE_CLARIFICATION,
+    NOTIFY_EMPLOYEE_NEEDS_REVISION,
     NOTIFY_EMPLOYEE_REJECTED,
 )
 from payback.services.people import StaffOverview
@@ -326,6 +327,7 @@ __all__ = [
     "MANAGER_ONLY",
     "NOTIFY_EMPLOYEE_APPROVED",
     "NOTIFY_EMPLOYEE_CLARIFICATION",
+    "NOTIFY_EMPLOYEE_NEEDS_REVISION",
     "NOTIFY_EMPLOYEE_REJECTED",
     "NO_EXPENSES",
     "NO_MANAGER",

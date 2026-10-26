@@ -12,6 +12,7 @@ from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
+from payback.services.planfix_text import plain_comment_text
 from payback.services.ports import NotifierPort, PlanfixPort
 
 logger = logging.getLogger(__name__)
@@ -107,7 +108,10 @@ class WebhookService:
             )
             return expense
 
-        detail = await self._latest_comment_detail(task_id, new_status)
+        robot_owner_id = _user_ref_id(task.get("assigner"))
+        detail = await self._latest_comment_detail(
+            task_id, new_status, exclude_owner_id=robot_owner_id
+        )
         await self._expenses.set_status(expense, new_status)
         # Commit before Telegram side effects: HTTP 200 already went out, and a
         # notify failure must not leave local status behind PlanFix.
@@ -119,15 +123,44 @@ class WebhookService:
         await self._notify_employee(expense, detail=detail)
         return expense
 
-    async def _latest_comment_detail(self, task_id: int, status: ExpenseStatus) -> str | None:
+    async def _latest_comment_detail(
+        self,
+        task_id: int,
+        status: ExpenseStatus,
+        *,
+        exclude_owner_id: str | None,
+    ) -> str | None:
         if status not in _STATUSES_NEEDING_COMMENT:
             return None
-        # Planfix has no dedicated "latest human comment" endpoint. We request one
-        # comment per page and stop as soon as one human comment appears.
+        # Newest-first; skip robot-authored rows (API comments share assigner.id).
         for offset in range(_MAX_COMMENT_PAGES):
             comments = await self._planfix.list_comments(task_id, offset=offset, page_size=1)
-            if comments:
-                return comments[0].description
+            if not comments:
+                continue
+            comment = comments[0]
+            if exclude_owner_id is not None and comment.owner_id == exclude_owner_id:
+                continue
+            detail = plain_comment_text(comment.description)
+            if not detail:
+                continue
+            logger.info(
+                "planfix webhook using latest comment for employee notify",
+                extra={
+                    "planfix_task_id": task_id,
+                    "status": status.value,
+                    "comment_offset": offset,
+                    "comment_owner_id": comment.owner_id,
+                },
+            )
+            return detail
+        logger.info(
+            "planfix webhook has no human comment for status that needs one",
+            extra={
+                "planfix_task_id": task_id,
+                "status": status.value,
+                "exclude_owner_id": exclude_owner_id,
+            },
+        )
         return None
 
     async def _mark_manager_card(self, expense: Expense) -> None:
@@ -198,6 +231,18 @@ def _status_id_from_task(task: Mapping[str, Any] | dict[str, Any]) -> int | None
         return None
     raw = status.get("id")
     return raw if isinstance(raw, int) else None
+
+
+def _user_ref_id(value: object) -> str | None:
+    """Normalize PlanFix user refs to ``user:N`` (assigner / comment owner)."""
+    if not isinstance(value, dict):
+        return None
+    raw = value.get("id")
+    if isinstance(raw, str) and raw.startswith("user:"):
+        return raw
+    if isinstance(raw, int):
+        return f"user:{raw}"
+    return None
 
 
 def _log_status_name_mismatch(

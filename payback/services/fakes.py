@@ -36,14 +36,20 @@ class FakePlanfix:
     files: dict[int, bytes] = field(default_factory=dict)
     attachments: list[tuple[int, int]] = field(default_factory=list)
     task_updates: list[tuple[int, dict[str, object]]] = field(default_factory=list)
-    comments: list[tuple[int, str]] = field(default_factory=list)
+    # (task_id, description, owner_id) — owner_id mirrors PlanFix ``user:N``.
+    comments: list[tuple[int, str, str | None]] = field(default_factory=list)
+    robot_owner_id: str = "user:7"
     _next_task_id: int = 100
     _next_file_id: int = 1000
     _next_comment_id: int = 7000
 
     def seed_task(self, task_id: int, *, status_id: int) -> None:
         """Install a task row for webhook/get_task tests."""
-        self.tasks[task_id] = {"id": task_id, "status": {"id": status_id}}
+        self.tasks[task_id] = {
+            "id": task_id,
+            "status": {"id": status_id},
+            "assigner": {"id": self.robot_owner_id, "name": "payback robot"},
+        }
 
     async def create_task(
         self,
@@ -64,7 +70,11 @@ class FakePlanfix:
         task_id = self._next_task_id
         self._next_task_id += 1
         self.tasks_by_expense[expense_id] = task_id
-        self.tasks[task_id] = {"id": task_id, "status": {"id": None}}
+        self.tasks[task_id] = {
+            "id": task_id,
+            "status": {"id": None},
+            "assigner": {"id": self.robot_owner_id, "name": "payback robot"},
+        }
         return task_id
 
     async def get_task(self, task_id: int, field_ids: Iterable[int] = ()) -> dict[str, Any]:
@@ -122,8 +132,14 @@ class FakePlanfix:
             raise PlanfixError("fake add_comment failure")
         comment_id = self._next_comment_id
         self._next_comment_id += 1
-        self.comments.append((task_id, description))
+        self.comments.append((task_id, description, self.robot_owner_id))
         return comment_id
+
+    def add_seed_comment(
+        self, task_id: int, description: str, *, owner_id: str | None = None
+    ) -> None:
+        """Append a comment for webhook tests (defaults to a human author)."""
+        self.comments.append((task_id, description, owner_id if owner_id is not None else "user:5"))
 
     async def list_comments(
         self, task_id: int, *, offset: int = 0, page_size: int = 100
@@ -131,13 +147,13 @@ class FakePlanfix:
         self.list_comments_calls += 1
         self.comment_list_requests.append((offset, page_size))
         if self.fail_on == "list_comments":
-            raise PlanfixError("fake list_comments failure")
+            raise PlanFixError("fake list_comments failure")
         # Newest first (PlanFix order).
-        texts = [text for tid, text in self.comments if tid == task_id]
-        page = list(reversed(texts))[offset : offset + page_size]
+        rows = [(text, owner) for tid, text, owner in self.comments if tid == task_id]
+        page = list(reversed(rows))[offset : offset + page_size]
         return [
-            PlanfixComment(id=index, description=text, owner_id=None)
-            for index, text in enumerate(page, start=offset + 1)
+            PlanfixComment(id=index, description=text, owner_id=owner)
+            for index, (text, owner) in enumerate(page, start=offset + 1)
         ]
 
 
