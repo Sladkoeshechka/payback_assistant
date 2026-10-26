@@ -3,7 +3,7 @@
 import logging
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.types import BufferedInputFile
 
 from payback.bot import texts
@@ -12,6 +12,11 @@ from payback.db.models import Expense, User
 from payback.services.notifications import format_employee_decision
 
 logger = logging.getLogger(__name__)
+
+
+def _is_message_not_modified(error: TelegramAPIError) -> bool:
+    """Telegram returns this when edit would not change content or markup."""
+    return isinstance(error, TelegramBadRequest) and "message is not modified" in error.message
 
 
 class TelegramNotifier:
@@ -62,7 +67,10 @@ class TelegramNotifier:
                 message_id=message_id,
                 reply_markup=None,
             )
-        except TelegramAPIError:
+        except TelegramAPIError as error:
+            if _is_message_not_modified(error):
+                # Already cleared (double clear / race with PlanFix mark) — fine.
+                return
             logger.exception(
                 "failed to clear manager decision keyboard",
                 extra={"manager_telegram_id": manager.telegram_id, "message_id": message_id},
@@ -96,7 +104,9 @@ class TelegramNotifier:
                     text=text,
                     reply_markup=None,
                 )
-        except TelegramAPIError:
+        except TelegramAPIError as error:
+            if _is_message_not_modified(error):
+                return
             logger.exception(
                 "failed to mark manager card decided in PlanFix",
                 extra={"manager_telegram_id": chat_id, "message_id": message_id},
