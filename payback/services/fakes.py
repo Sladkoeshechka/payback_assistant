@@ -147,7 +147,7 @@ class FakePlanfix:
         self.list_comments_calls += 1
         self.comment_list_requests.append((offset, page_size))
         if self.fail_on == "list_comments":
-            raise PlanFixError("fake list_comments failure")
+            raise PlanfixError("fake list_comments failure")
         # Newest first (PlanFix order).
         rows = [(text, owner) for tid, text, owner in self.comments if tid == task_id]
         page = list(reversed(rows))[offset : offset + page_size]

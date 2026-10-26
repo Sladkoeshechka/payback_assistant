@@ -1,4 +1,5 @@
 from decimal import Decimal
+from urllib.parse import unquote, urlparse
 
 import pytest
 from pydantic import ValidationError
@@ -44,11 +45,15 @@ def test_secrets_are_not_exposed_by_repr(env: dict[str, str]) -> None:
     assert "test-planfix-token" not in repr(settings)
     assert "test-bot-token" not in repr(settings)
     assert settings.planfix.api_token.get_secret_value() == "test-planfix-token"
-    assert set(settings.secrets()) == {
+    expected = {
         "111:test-bot-token",
         "test-webhook-secret",
         "test-planfix-token",
     }
+    db_password = urlparse(env["DATABASE_URL"]).password
+    if db_password:
+        expected.add(unquote(db_password))
+    assert set(settings.secrets()) == expected
 
 
 def test_database_url_password_is_included_in_secrets(

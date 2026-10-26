@@ -1,5 +1,7 @@
 """Validation of configured expense-card fields and statuses at startup."""
 
+# ruff: noqa: RUF001
+
 from collections.abc import Mapping
 from typing import Any
 

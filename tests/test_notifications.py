@@ -1,3 +1,5 @@
+# ruff: noqa: RUF001
+
 from datetime import date
 from decimal import Decimal
 
@@ -39,9 +41,7 @@ def test_format_employee_decision_needs_revision_includes_detail() -> None:
         detail="приложите чек",
     )
 
-    assert text == NOTIFY_EMPLOYEE_NEEDS_REVISION.format(
-        task_id=55, detail="приложите чек"
-    )
+    assert text == NOTIFY_EMPLOYEE_NEEDS_REVISION.format(task_id=55, detail="приложите чек")
 
 
 def test_format_employee_decision_needs_revision_without_detail() -> None:

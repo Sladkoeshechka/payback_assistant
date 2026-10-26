@@ -172,7 +172,9 @@ def _status_id_from_task(task: Mapping[str, Any] | dict[str, Any]) -> int | None
     return raw if isinstance(raw, int) else None
 
 
-def _status_for_planfix_id(status_ids: PlanfixStatusIds, status_id: int | None) -> ExpenseStatus | None:
+def _status_for_planfix_id(
+    status_ids: PlanfixStatusIds, status_id: int | None
+) -> ExpenseStatus | None:
     if status_id is None:
         return None
     for attr_name, status in _STATUS_BY_ID_ATTR.items():
