@@ -70,6 +70,15 @@ class UsersRepo:
         )
         return list(result)
 
+    async def list_subordinates(self, manager_id: int) -> list[User]:
+        """Active and inactive employees who report to this manager."""
+        result = await self._session.scalars(
+            select(User)
+            .where(User.manager_id == manager_id, User.role == UserRole.EMPLOYEE)
+            .order_by(User.is_active.desc(), User.last_name, User.first_name, User.id)
+        )
+        return list(result)
+
     async def set_active(self, user: User, is_active: bool) -> None:
         user.is_active = is_active
         await self._session.flush()

@@ -114,9 +114,9 @@ class PeopleService:
         return InvitedRegistration(user=user, invite=invite, inviter=inviter)
 
     async def get_staff_overview(self, manager_telegram_id: int) -> StaffOverview:
-        """Return subordinates and unused invites owned by this manager."""
+        """Return subordinates (incl. inactive) and unused invites owned by this manager."""
         manager = await self.verify_manager(manager_telegram_id)
-        subordinates = await self._users.list_active_subordinates(manager.id)
+        subordinates = await self._users.list_subordinates(manager.id)
         invites = await self._invites.list_active_for_creator(manager.id, datetime.now(UTC))
         return StaffOverview(
             manager=manager,
@@ -150,6 +150,20 @@ class PeopleService:
         ):
             raise StaffMemberNotFoundError("subordinate is not available to deactivate")
         await self._users.set_active(employee, False)
+        return employee
+
+    async def reactivate_subordinate(self, manager_telegram_id: int, employee_id: int) -> User:
+        """Re-enable an inactive employee who reports to this manager."""
+        manager = await self.verify_manager(manager_telegram_id)
+        employee = await self._users.get_by_id(employee_id)
+        if (
+            employee is None
+            or employee.manager_id != manager.id
+            or employee.role != UserRole.EMPLOYEE
+            or employee.is_active
+        ):
+            raise StaffMemberNotFoundError("subordinate is not available to reactivate")
+        await self._users.set_active(employee, True)
         return employee
 
     async def link_planfix_user(self, manager_telegram_id: int, planfix_user_id: int) -> User:

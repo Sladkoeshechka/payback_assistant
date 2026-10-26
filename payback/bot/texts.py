@@ -38,6 +38,7 @@ NO_EXPENSES = "За последние 30 дней заявок нет."
 NO_PENDING = "Нет заявок, ожидающих вашего решения."
 INVITE_REVOKED = "Приглашение отозвано."
 EMPLOYEE_DEACTIVATED = "Сотрудник {full_name} отключён."
+EMPLOYEE_REACTIVATED = "Сотрудник {full_name} снова включён."
 CHOOSE_PLANFIX_USER = "Выберите своего пользователя в ПланФиксе:"
 INVITE_PROMPT = "Кого вы хотите пригласить?"
 INVITE_CREATED = "Приглашение создано: {link}\nОно действует 72 часа и используется один раз."
@@ -174,7 +175,8 @@ def staff_overview(overview: StaffOverview) -> str:
         lines.append("")
         lines.append("Сотрудники:")
         for employee in overview.subordinates:
-            lines.append(f"• {full_name(employee)}")
+            marker = "" if employee.is_active else " (отключён)"
+            lines.append(f"• {full_name(employee)}{marker}")
     else:
         lines.append("")
         lines.append("Сотрудников пока нет.")
@@ -312,6 +314,7 @@ __all__ = [
     "EDIT_QR_LOCKED",
     "EMPLOYEE_DEACTIVATED",
     "EMPLOYEE_ONLY",
+    "EMPLOYEE_REACTIVATED",
     "GENERIC_ERROR",
     "INACTIVE_USER",
     "INVALID_AMOUNT",

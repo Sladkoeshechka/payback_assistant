@@ -23,14 +23,25 @@ def staff_keyboard(overview: StaffOverview) -> InlineKeyboardMarkup:
     """Actions for subordinates, unused invites, and Planfix linking."""
     rows: list[list[InlineKeyboardButton]] = []
     for employee in overview.subordinates:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=f"Отключить: {employee.first_name} {employee.last_name}",
-                    callback_data=f"staff:off:{employee.id}",
-                )
-            ]
-        )
+        name = f"{employee.first_name} {employee.last_name}"
+        if employee.is_active:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"Отключить: {name}",
+                        callback_data=f"staff:off:{employee.id}",
+                    )
+                ]
+            )
+        else:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"Включить: {name}",
+                        callback_data=f"staff:on:{employee.id}",
+                    )
+                ]
+            )
     for invite in overview.invites:
         rows.append(
             [

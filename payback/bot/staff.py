@@ -139,6 +139,25 @@ def create_router() -> Router:
             texts.EMPLOYEE_DEACTIVATED.format(full_name=texts.full_name(employee))
         )
 
+    @router.callback_query(F.data.startswith("staff:on:"))
+    async def reactivate_employee(callback: CallbackQuery, people: PeopleService) -> None:
+        if callback.from_user is None or callback.data is None or callback.message is None:
+            return
+        employee_id = int(callback.data.rsplit(":", 1)[1])
+        try:
+            employee = await people.reactivate_subordinate(callback.from_user.id, employee_id)
+            overview = await people.get_staff_overview(callback.from_user.id)
+        except ManagerRequiredError:
+            await callback.answer(texts.MANAGER_ONLY, show_alert=True)
+            return
+        except StaffMemberNotFoundError:
+            await callback.answer(texts.STAFF_ACTION_UNAVAILABLE, show_alert=True)
+            return
+        await _refresh_staff_message(callback, overview)
+        await callback.answer(
+            texts.EMPLOYEE_REACTIVATED.format(full_name=texts.full_name(employee))
+        )
+
     return router
 
 

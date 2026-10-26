@@ -50,12 +50,14 @@ async def test_users_support_manager_relationships_and_owner_bootstrap(
     assert same_manager.id == manager.id
     assert (await users.get_by_telegram_id(1000)) is manager
     assert await users.list_active_subordinates(manager.id) == [employee]
+    assert await users.list_subordinates(manager.id) == [employee]
 
     await users.link_planfix_user(manager, 9001)
     await users.set_active(employee, False)
 
     assert manager.planfix_user_id == 9001
     assert await users.list_active_subordinates(manager.id) == []
+    assert await users.list_subordinates(manager.id) == [employee]
 
 
 async def test_invites_only_return_unexpired_unconsumed_unrevoked_codes(

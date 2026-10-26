@@ -79,12 +79,23 @@ async def test_staff_deactivates_employee_and_links_planfix(
     await session.refresh(employee)
     assert employee.is_active is False
 
-    await dispatcher.feed_raw_update(bot, _callback_update(2, manager.telegram_id, "staff:link"))
+    await dispatcher.feed_raw_update(bot, _message_update(2, manager.telegram_id, "/staff"))
+    staff_text = getattr(telegram_session.methods[-1], "text", None)
+    assert staff_text is not None
+    assert "Ada Lovelace (отключён)" in staff_text
+
+    await dispatcher.feed_raw_update(
+        bot, _callback_update(3, manager.telegram_id, f"staff:on:{employee.id}")
+    )
+    await session.refresh(employee)
+    assert employee.is_active is True
+
+    await dispatcher.feed_raw_update(bot, _callback_update(4, manager.telegram_id, "staff:link"))
     assert getattr(telegram_session.methods[-2], "text", None) == (
         "Выберите своего пользователя в ПланФиксе:"
     )
 
-    await dispatcher.feed_raw_update(bot, _callback_update(3, manager.telegram_id, "staff:pf:3"))
+    await dispatcher.feed_raw_update(bot, _callback_update(5, manager.telegram_id, "staff:pf:3"))
     await session.refresh(manager)
     assert manager.planfix_user_id == 3
     assert any(
