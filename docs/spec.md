@@ -410,7 +410,7 @@ Content-Type: application/json
 - **aiogram 3** — бот, FSM для диалогов
 - **FastAPI + Uvicorn** — приём вебхуков ПланФикса и эндпоинт `/health`
 - **SQLAlchemy 2.0 (async) + Alembic** — база и миграции
-- **PostgreSQL** в продакшене, **SQLite** для локальной разработки
+- **PostgreSQL** — прод и локальная разработка по умолчанию; **SQLite** — опциональный fallback (`DATABASE_URL` / `make test-sqlite`), без гарантии полного паритета
 - **httpx** — асинхронный клиент к REST API ПланФикса
 - **Pydantic v2** — валидация данных и настроек (`pydantic-settings`)
 - **pyzbar + OpenCV (headless)** — распознавание QR

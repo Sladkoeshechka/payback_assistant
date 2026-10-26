@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
-.PHONY: help sync install lint format typecheck test check run show-db reset-db \
-	planfix-ids docker-up docker-down docker-logs docker-build
+.PHONY: help sync install lint format typecheck test test-sqlite check run show-db reset-db \
+	planfix-ids db-up db-down docker-up docker-down docker-logs docker-build
 
 help:
 	@grep -hE '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | expand -t20
@@ -21,12 +21,21 @@ format: ## Apply formatting and safe lint fixes
 typecheck: ## Run mypy
 	uv run mypy payback tests
 
-test: ## Run the test suite
+db-up: ## Start Postgres only (localhost:5432; for make run / make test)
+	./scripts/db_up.sh
+
+db-down: ## Stop Postgres (keeps volume)
+	docker compose stop db
+
+test: ## Run tests against Postgres (make db-up first)
 	uv run pytest
 
-check: lint typecheck test ## Everything CI would run
+test-sqlite: ## Fast tests on SQLite in-memory (no Docker DB)
+	PAYBACK_TEST_DB=sqlite uv run pytest
 
-run: ## Start the service
+check: lint typecheck test ## Everything CI would run (needs make db-up)
+
+run: ## Start the service (Postgres via DATABASE_URL; make db-up if local)
 	uv run python -m payback
 
 show-db: ## Print users, invites, and expenses from DATABASE_URL

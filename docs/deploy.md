@@ -33,8 +33,21 @@ docker compose logs -f app caddy
 
 Or: `make docker-up` (set `PAYBACK_ENV_FILE` only if secrets are not in `./.env`).
 
-Compose overrides `DATABASE_URL` to Postgres (`payback:payback@db:5432/payback`).  
-Local `make run` can keep using SQLite without Caddy.
+Compose app uses Postgres on the internal host `db` (`payback:payback@db:5432/payback`).  
+Postgres publishes `localhost:5432` for local `make run` / `make test`.
+
+**Local development (prod-like):**
+
+```bash
+make db-up                          # Postgres + payback_test database
+# DATABASE_URL=postgresql+asyncpg://payback:payback@127.0.0.1:5432/payback
+make run
+make test                           # uses payback_test
+make test-sqlite                    # optional fast fallback (no Docker DB)
+```
+
+SQLite remains a documented fallback (`DATABASE_URL=sqlite+aiosqlite:///./payback.db`);  
+feature parity with prod (e.g. `SKIP LOCKED`) is not guaranteed there.
 
 ## What starts
 

@@ -1,4 +1,5 @@
 import json
+import os
 from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ from aiogram import Bot
 from aiogram.client.session.base import BaseSession
 from aiogram.methods import GetFile, GetMe, TelegramMethod
 from aiogram.types import File, User
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -20,6 +22,26 @@ from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
 """Responses captured from the real Planfix API (planfix-notes.md §9)."""
+
+# Prod-like default (separate DB so `make run` data is untouched).
+# Override with PAYBACK_TEST_DATABASE_URL or PAYBACK_TEST_DB=sqlite.
+_DEFAULT_POSTGRES_URL = "postgresql+asyncpg://payback:payback@127.0.0.1:5432/payback_test"
+_SQLITE_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
+
+
+def test_database_url() -> str:
+    """URL for DB-backed tests (Postgres by default, SQLite opt-in)."""
+    explicit = os.environ.get("PAYBACK_TEST_DATABASE_URL", "").strip()
+    if explicit:
+        return explicit
+    flag = os.environ.get("PAYBACK_TEST_DB", "").strip().lower()
+    if flag in {"sqlite", "1", "true", "yes"}:
+        return _SQLITE_MEMORY_URL
+    return _DEFAULT_POSTGRES_URL
+
+
+def using_sqlite_tests() -> bool:
+    return test_database_url().startswith("sqlite")
 
 
 class RecordingSession(BaseSession):
@@ -81,7 +103,7 @@ ENV: dict[str, str] = {
     "BOT_TOKEN": "111:test-bot-token",
     "OWNER_TELEGRAM_ID": "100500",
     "WEBHOOK_SECRET": "test-webhook-secret",
-    "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+    "DATABASE_URL": _DEFAULT_POSTGRES_URL,
     "PLANFIX_ACCOUNT": "https://example.planfix.ru",
     "PLANFIX_API_TOKEN": "test-planfix-token",
     "PLANFIX_OBJECT_ID": "17",
@@ -114,15 +136,30 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[dict[str, s
     DEV_MODE and the amount limits — out of the assertions.
     """
     monkeypatch.chdir(tmp_path)
-    for key, value in ENV.items():
+    values = dict(ENV)
+    values["DATABASE_URL"] = test_database_url()
+    for key, value in values.items():
         monkeypatch.setenv(key, value)
-    yield dict(ENV)
+    yield values
 
 
 @pytest.fixture
 async def db_engine() -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    """Fresh schema per test. Postgres by default; SQLite via ``PAYBACK_TEST_DB=sqlite``."""
+    url = test_database_url()
+    engine = create_async_engine(url)
+    if not using_sqlite_tests():
+        try:
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
+        except Exception as error:
+            await engine.dispose()
+            pytest.fail(
+                f"Postgres unreachable ({url}): {error}\n"
+                "Start it with `make db-up`, or run `make test-sqlite`."
+            )
     async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)
 
     yield engine

@@ -125,7 +125,7 @@ class Settings(BaseSettings):
     """Optional proxy for the Telegram API, for hosts without direct access."""
 
     webhook_secret: SecretStr
-    database_url: str = "sqlite+aiosqlite:///./payback.db"
+    database_url: str = "postgresql+asyncpg://payback:payback@127.0.0.1:5432/payback"
 
     @field_validator("bot_token", "webhook_secret")
     @classmethod
