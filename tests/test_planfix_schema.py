@@ -16,6 +16,9 @@ async def test_schema_validation_returns_configured_directories(env: dict[str, s
     respx.get("https://example.planfix.ru/rest/customfield/task").mock(
         return_value=httpx.Response(200, json=load_fixture("customfields"))
     )
+    respx.get("https://example.planfix.ru/rest/object/17/statuses").mock(
+        return_value=httpx.Response(200, json=load_fixture("object_statuses"))
+    )
     settings = Settings()
     client = PlanfixClient(settings.planfix)
 
@@ -41,6 +44,9 @@ async def test_schema_validation_aggregates_missing_and_invalid_fields(env: dict
     respx.get("https://example.planfix.ru/rest/customfield/task").mock(
         return_value=httpx.Response(200, json={"result": "success", "customfields": changed})
     )
+    respx.get("https://example.planfix.ru/rest/object/17/statuses").mock(
+        return_value=httpx.Response(200, json=load_fixture("object_statuses"))
+    )
     settings = Settings()
     client = PlanfixClient(settings.planfix)
 
@@ -51,4 +57,55 @@ async def test_schema_validation_aggregates_missing_and_invalid_fields(env: dict
     assert "141380" in message
     assert "141370" in message
     assert "directoryId" in message
+    await client.aclose()
+
+
+@respx.mock
+async def test_schema_validation_rejects_status_name_mismatch(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PLANFIX_STATUS_APPROVED", "105")
+    monkeypatch.setenv("PLANFIX_STATUS_TO_PAY", "103")
+    respx.get("https://example.planfix.ru/rest/customfield/task").mock(
+        return_value=httpx.Response(200, json=load_fixture("customfields"))
+    )
+    respx.get("https://example.planfix.ru/rest/object/17/statuses").mock(
+        return_value=httpx.Response(200, json=load_fixture("object_statuses"))
+    )
+    settings = Settings()
+    client = PlanfixClient(settings.planfix)
+
+    with pytest.raises(PlanfixSchemaError, match="PLANFIX_STATUS_APPROVED"):
+        await validate_planfix_schema(client, settings.planfix)
+    await client.aclose()
+
+
+@respx.mock
+async def test_schema_validation_rejects_ambiguous_status_names(env: dict[str, str]) -> None:
+    payload = load_fixture("object_statuses")
+    assert isinstance(payload, dict)
+    statuses = payload.get("statuses")
+    assert isinstance(statuses, list)
+    duplicate = {
+        "id": 999,
+        "name": "Одобрено",
+        "isActive": True,
+        "texts": [{"lang": "Ru", "name": "Одобрено"}],
+    }
+    statuses_with_duplicate = [*statuses, duplicate]
+
+    respx.get("https://example.planfix.ru/rest/customfield/task").mock(
+        return_value=httpx.Response(200, json=load_fixture("customfields"))
+    )
+    respx.get("https://example.planfix.ru/rest/object/17/statuses").mock(
+        return_value=httpx.Response(
+            200,
+            json={"result": "success", "statuses": statuses_with_duplicate},
+        )
+    )
+    settings = Settings()
+    client = PlanfixClient(settings.planfix)
+
+    with pytest.raises(PlanfixSchemaError, match="ambiguous"):
+        await validate_planfix_schema(client, settings.planfix)
     await client.aclose()

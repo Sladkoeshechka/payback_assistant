@@ -19,6 +19,7 @@ from payback.db.session import build_engine
 from payback.logging_setup import configure_logging, redact
 from payback.planfix.client import PlanfixClient
 from payback.planfix.directories import DirectoryCache
+from payback.planfix.exceptions import PlanfixSchemaError
 from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
 from payback.planfix.schema import validate_planfix_schema
 from payback.services.fakes import FakePlanfix
@@ -98,6 +99,10 @@ async def connect_planfix(
     client = PlanfixClient(settings.planfix)
     try:
         schema = await validate_planfix_schema(client, settings.planfix)
+    except PlanfixSchemaError:
+        await client.aclose()
+        # Configuration/schema mismatch must fail startup (stage 10 A3).
+        raise
     except Exception:
         await client.aclose()
         if not settings.dev_mode:
