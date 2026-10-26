@@ -1,6 +1,8 @@
 """Manager decisions on pending expenses (stage 8A)."""
 
 import logging
+from collections.abc import Mapping
+from typing import Any
 
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User
@@ -25,6 +27,17 @@ class ApprovalForbiddenError(ApprovalError):
 
 class ExpenseNotPendingError(ApprovalError):
     """The expense is not waiting for a manager decision (already decided)."""
+
+
+_STATUS_BY_ID_ATTR = {
+    "pending": ExpenseStatus.PENDING,
+    "clarification": ExpenseStatus.CLARIFICATION,
+    "approved": ExpenseStatus.APPROVED,
+    "rejected": ExpenseStatus.REJECTED,
+    "needs_revision": ExpenseStatus.NEEDS_REVISION,
+    "to_pay": ExpenseStatus.TO_PAY,
+    "reimbursed": ExpenseStatus.REIMBURSED,
+}
 
 
 class ApprovalService:
@@ -78,7 +91,7 @@ class ApprovalService:
     async def _load_pending_for_manager(
         self, expense_id: int, manager: User
     ) -> tuple[Expense, User]:
-        expense = await self._expenses.get_by_id(expense_id)
+        expense = await self._expenses.get_by_id_for_update(expense_id)
         if expense is None:
             raise ExpenseNotFoundError(f"expense {expense_id} not found")
         employee = expense.employee
@@ -86,7 +99,22 @@ class ApprovalService:
             raise ApprovalForbiddenError("manager cannot decide on this expense")
         if expense.status is not ExpenseStatus.PENDING:
             raise ExpenseNotPendingError(f"expense {expense_id} is {expense.status}")
+        await self._ensure_planfix_still_pending(expense)
         return expense, employee
+
+    async def _ensure_planfix_still_pending(self, expense: Expense) -> None:
+        if expense.planfix_task_id is None:
+            return
+        task = await self._planfix.get_task(expense.planfix_task_id)
+        status_id = _status_id_from_task(task)
+        if status_id == self._status_ids.pending:
+            return
+        resolved = _status_for_planfix_id(self._status_ids, status_id)
+        if resolved is not None and expense.status is not resolved:
+            await self._expenses.set_status(expense, resolved)
+        raise ExpenseNotPendingError(
+            f"planfix task {expense.planfix_task_id} status is {status_id}, expected pending"
+        )
 
     async def _push_planfix(
         self,
@@ -134,3 +162,20 @@ __all__ = [
     "ExpenseNotFoundError",
     "ExpenseNotPendingError",
 ]
+
+
+def _status_id_from_task(task: Mapping[str, Any] | dict[str, Any]) -> int | None:
+    status = task.get("status")
+    if not isinstance(status, dict):
+        return None
+    raw = status.get("id")
+    return raw if isinstance(raw, int) else None
+
+
+def _status_for_planfix_id(status_ids: PlanfixStatusIds, status_id: int | None) -> ExpenseStatus | None:
+    if status_id is None:
+        return None
+    for attr_name, status in _STATUS_BY_ID_ATTR.items():
+        if getattr(status_ids, attr_name) == status_id:
+            return status
+    return None

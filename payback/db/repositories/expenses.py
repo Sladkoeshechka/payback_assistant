@@ -53,6 +53,15 @@ class ExpensesRepo:
             select(Expense).where(Expense.id == expense_id).options(selectinload(Expense.employee))
         )
 
+    async def get_by_id_for_update(self, expense_id: int) -> Expense | None:
+        """Load an expense row with a write lock when the backend supports it."""
+        return await self._session.scalar(
+            select(Expense)
+            .where(Expense.id == expense_id)
+            .options(selectinload(Expense.employee))
+            .with_for_update()
+        )
+
     async def get_clarification_for_employee(self, employee_id: int) -> Expense | None:
         """Newest expense waiting for this employee's clarification reply, if any."""
         return await self._session.scalar(

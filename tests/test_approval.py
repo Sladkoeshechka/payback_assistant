@@ -78,6 +78,7 @@ async def test_approve_updates_planfix_local_status_and_notifies(
     planfix = FakePlanfix()
     notifier = FakeNotifier()
     settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     result = await _service(session, planfix, notifier).approve(
         expense_id=expense.id, manager=manager
@@ -103,6 +104,8 @@ async def test_approve_keeps_local_status_when_notify_fails(
     expense = await _pending_expense(session, employee.id)
     planfix = FakePlanfix()
     notifier = FakeNotifier(fail_on_employee_decision=True)
+    settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     result = await _service(session, planfix, notifier).approve(
         expense_id=expense.id, manager=manager
@@ -122,6 +125,7 @@ async def test_reject_writes_comment_and_reason(env: dict[str, str], session: As
     planfix = FakePlanfix()
     notifier = FakeNotifier()
     settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     result = await _service(session, planfix, notifier).reject(
         expense_id=expense.id, manager=manager, reason="личная покупка"
@@ -140,6 +144,7 @@ async def test_ask_moves_to_clarification(env: dict[str, str], session: AsyncSes
     planfix = FakePlanfix()
     notifier = FakeNotifier()
     settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     result = await _service(session, planfix, notifier).ask(
         expense_id=expense.id, manager=manager, question="Есть чек?"
@@ -160,6 +165,8 @@ async def test_double_approve_rejected_when_not_pending(
     planfix = FakePlanfix()
     notifier = FakeNotifier()
     service = _service(session, planfix, notifier)
+    settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     await service.approve(expense_id=expense.id, manager=manager)
     await session.commit()
@@ -175,10 +182,32 @@ async def test_wrong_manager_is_forbidden(env: dict[str, str], session: AsyncSes
     expense = await _pending_expense(session, employee.id)
     planfix = FakePlanfix()
     notifier = FakeNotifier()
+    settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.pending)
 
     with pytest.raises(ApprovalForbiddenError):
         await _service(session, planfix, notifier).approve(
             expense_id=expense.id, manager=other_manager
         )
+    assert planfix.update_calls == 0
+    assert notifier.employee_messages == []
+
+
+async def test_approve_aborts_when_planfix_is_already_not_pending(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    manager, _, employee = await _people(session)
+    expense = await _pending_expense(session, employee.id)
+    planfix = FakePlanfix()
+    notifier = FakeNotifier()
+    settings = Settings()
+    planfix.seed_task(55, status_id=settings.planfix.statuses.to_pay)
+
+    with pytest.raises(ExpenseNotPendingError):
+        await _service(session, planfix, notifier).approve(expense_id=expense.id, manager=manager)
+
+    reloaded = await ExpensesRepo(session).get_by_id(expense.id)
+    assert reloaded is not None
+    assert reloaded.status is ExpenseStatus.TO_PAY
     assert planfix.update_calls == 0
     assert notifier.employee_messages == []
