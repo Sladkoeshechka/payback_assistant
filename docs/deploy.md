@@ -1,5 +1,7 @@
 # Deploy (stage 11)
 
+PlanFix GUI steps: [planfix_setup/setup.md](planfix_setup/setup.md).
+
 Stack: **app** (bot + FastAPI) + **PostgreSQL** + **Caddy** (HTTPS).
 
 ## Prerequisites
