@@ -10,3 +10,4 @@ __pycache__/
 *.egg-info/
 docs/planfix-notes.md
 docs/swagger.json
+.qr_codes/

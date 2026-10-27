@@ -250,6 +250,8 @@
 | **C1** | Invite без orphan-пользователей при concurrent consume | Редкий race |
 | **C2** | `/staff`: показать имя из `user/list` перед привязкой | **Не** блокировать подачу без `planfix_user_id` у руководителя — валиден режим «руководитель только в Telegram» |
 | **A5** | Retry/reconcile вебхуков (eventual consistency) | Ранее вынесено из этапа 10 |
+| — | QR: preprocess rotate 90°/180°/270° + upscale/CLAHE перед OpenCV | Реальные фото из `.qr_codes`: sideways / мелкий QR; multi оставить как есть |
+| — | QR: второй декодер pyzbar после OpenCV | В Docker уже `libzbar0` + extra `zbar` и цепочка в `default_qr_decoders`; дожать: проверить на `.qr_codes`, опционально включить локально (`apt` + `uv sync --extra zbar`) |
 | — | Rate limit на `/webhooks/planfix` | |
 | — | Обязательный `NO_RECEIPT_MAX_AMOUNT` в prod | |
 | — | Мягкий дедуп заявок без ФН/ФД/ФП | |
