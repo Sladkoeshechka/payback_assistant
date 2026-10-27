@@ -11,9 +11,8 @@ services:
       POSTGRES_USER: payback
       POSTGRES_PASSWORD: payback
       POSTGRES_DB: payback
-    # Host port for local `make run` / `make test` (same credentials as app).
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
