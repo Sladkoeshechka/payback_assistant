@@ -218,7 +218,7 @@ def pending_expenses(expenses: list[Expense]) -> str:
 
 
 def confirmation_card(draft: SubmissionDraft) -> str:
-    """Render the pre-submit summary from spec §4.2.5."""
+    """Render the pre-submit expense summary."""
     amount = format_amount(draft.amount) if draft.amount is not None else "—"
     purchase = draft.purchase_date.strftime("%d.%m.%Y") if draft.purchase_date else "—"
     category = draft.category_name or "—"
@@ -249,7 +249,7 @@ def manager_expense_card(
     expense: Expense,
     reply_text: str | None = None,
 ) -> str:
-    """Caption / body for the manager notification (spec §4.3)."""
+    """Caption / body for the manager notification."""
     direction = expense.direction_name or "—"
     comment = expense.comment or "—"
     text = MANAGER_NEW_EXPENSE.format(

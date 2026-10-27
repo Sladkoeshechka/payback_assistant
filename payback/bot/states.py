@@ -31,7 +31,7 @@ class ExpenseSubmission(StatesGroup):
 
 
 class ManagerDecision(StatesGroup):
-    """FSM for reject reason and clarification question (stage 8A)."""
+    """FSM for reject reason and clarification question."""
 
     waiting_reject_reason = State()
     waiting_question = State()

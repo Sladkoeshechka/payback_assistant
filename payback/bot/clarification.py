@@ -1,4 +1,4 @@
-"""Telegram handlers for employee clarification replies (stage 8B)."""
+"""Telegram handlers for employee clarification replies."""
 
 from io import BytesIO
 

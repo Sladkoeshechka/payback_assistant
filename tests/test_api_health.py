@@ -16,7 +16,7 @@ async def test_health_returns_ok(env: dict[str, str]) -> None:
 
 
 async def test_health_survives_lifespan_startup_shutdown(env: dict[str, str]) -> None:
-    """Entering/leaving the ASGI lifespan must not break /health (9A stub)."""
+    """Entering/leaving the ASGI lifespan must not break /health."""
     app = create_app(Settings())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

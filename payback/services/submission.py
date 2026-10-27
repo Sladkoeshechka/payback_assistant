@@ -35,7 +35,7 @@ class DuplicateReceiptError(ValueError):
 
 
 def format_duplicate_receipt_message(existing: Expense) -> str:
-    """Build the user-visible duplicate-receipt line from spec §4.2.3."""
+    """Build the user-visible duplicate-receipt line."""
     submitted = existing.created_at.strftime("%d.%m.%Y")
     if existing.planfix_task_id is not None:
         reference = f"№{existing.planfix_task_id}"

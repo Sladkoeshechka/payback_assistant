@@ -59,7 +59,7 @@ _FIELD_TARGETS: tuple[tuple[str, int, tuple[str, ...]], ...] = (
     ("PLANFIX_FIELD_PAYMENT_DATE", 3, ("Дата выплаты",)),
 )
 
-# Spec names plus known account aliases (planfix-notes.md).
+# Canonical status names plus known account aliases.
 _STATUS_TARGETS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("PLANFIX_STATUS_PENDING", ("На согласовании",)),
     ("PLANFIX_STATUS_CLARIFICATION", ("Уточнение",)),

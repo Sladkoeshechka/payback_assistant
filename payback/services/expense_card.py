@@ -9,7 +9,7 @@ from payback.services.draft import SubmissionDraft
 
 
 def task_name(*, amount: Decimal, category_name: str, employee_name: str) -> str:
-    """Format the Planfix task title from spec §4.2.6."""
+    """Format the Planfix task title."""
     return f"Расход: {_format_amount(amount)} ₽, {category_name} — {employee_name}"
 
 

@@ -1,4 +1,4 @@
-"""Telegram FSM for photo and no-receipt expense submission (stage 7)."""
+"""Telegram FSM for photo and no-receipt expense submission."""
 
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation

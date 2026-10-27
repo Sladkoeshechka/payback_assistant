@@ -1,4 +1,4 @@
-"""Apply PlanFix task status changes from webhooks (stage 9C)."""
+"""Apply PlanFix task status changes from webhooks."""
 
 # ruff: noqa: RUF001
 
@@ -17,7 +17,7 @@ from payback.services.ports import NotifierPort, PlanfixPort
 
 logger = logging.getLogger(__name__)
 
-# Russian status titles from the expense object (spec §5) — diagnostics only.
+# Russian status titles from the expense object — diagnostics only.
 _STATUS_NAME_HINTS: dict[str, ExpenseStatus] = {
     "На согласовании": ExpenseStatus.PENDING,
     "Уточнение": ExpenseStatus.CLARIFICATION,
@@ -185,7 +185,7 @@ class WebhookService:
             )
 
     async def _notify_employee(self, expense: Expense, *, detail: str | None) -> None:
-        # Spec §4.5: TO_PAY is internal — do not notify the employee.
+        # TO_PAY is internal — do not notify the employee.
         if expense.status is ExpenseStatus.TO_PAY:
             return
         employee = expense.employee

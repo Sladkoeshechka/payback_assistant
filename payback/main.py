@@ -1,4 +1,4 @@
-"""Process entry point: FastAPI + aiogram polling in one event loop (stage 9E)."""
+"""Process entry point: FastAPI + aiogram polling in one event loop."""
 
 import asyncio
 import logging
@@ -38,8 +38,8 @@ _DEV_DIRECTION_DIRECTORY_ID = 9002
 def format_config_errors(error: ValidationError) -> str:
     """Render a settings failure as the environment variables to go and fix.
 
-    A raw pydantic traceback is the wrong thing to greet an operator with; spec §8
-    asks the service to refuse to start and say what is missing.
+    A raw pydantic traceback is the wrong thing to greet an operator with;
+    refuse to start and say which environment variables to fix.
     """
     lines = ["payback cannot start: the environment is incomplete or invalid"]
     for item in error.errors():

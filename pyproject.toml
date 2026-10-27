@@ -23,7 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 # pyzbar is a ctypes wrapper over libzbar.so, which is absent on the dev host and
 # needs root to install. OpenCV's QRCodeDetector is the primary decoder; pyzbar is
-# an optional second pass enabled in the Docker image. See docs/plan.md §5.
+# an optional second pass enabled in the Docker image.
 zbar = ["pyzbar>=0.1.9"]
 
 [dependency-groups]
@@ -59,7 +59,7 @@ target-version = "py312"
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
 
 # Development happens on Python 3.14 (the only interpreter on the dev host), but 3.12
-# is the supported floor per docs/spec.md §8. Pinning mypy to 3.12 is what keeps
+# is the supported Python floor. Pinning mypy to 3.12 is what keeps
 # 3.13+-only syntax and stdlib out of the codebase.
 [tool.mypy]
 python_version = "3.12"

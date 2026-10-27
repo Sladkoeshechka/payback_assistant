@@ -1,4 +1,4 @@
-"""Employee replies while an expense is in clarification (stage 8B)."""
+"""Employee replies while an expense is in clarification."""
 
 import logging
 

@@ -23,7 +23,7 @@ _STATUS_NAME_ALIASES = {
     "rejected": frozenset({"Отклонено"}),
     "needs_revision": frozenset({"Требует доработки"}),
     "to_pay": frozenset({"К выплате"}),
-    # Known account alias from planfix-notes.md.
+    # Known account alias observed in the wild.
     "reimbursed": frozenset({"Компенсировано", "компенсация завершена"}),
 }
 

@@ -115,7 +115,7 @@ def test_configure_logging_installs_a_single_json_handler_on_stdout() -> None:
         assert handler.stream is sys.stdout
         assert isinstance(handler.formatter, JsonFormatter)
         assert logging.getLogger().level == logging.DEBUG
-        # Chatty third-party loggers are turned down (spec §9).
+        # Chatty third-party loggers are turned down.
         assert logging.getLogger("httpx").level == logging.WARNING
     finally:
         logging.getLogger().handlers.clear()

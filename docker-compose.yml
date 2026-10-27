@@ -1,4 +1,4 @@
-# Stage 11: app + PostgreSQL + Caddy (HTTPS for PlanFix webhooks).
+# app + PostgreSQL + Caddy (HTTPS for PlanFix webhooks).
 # Env file (default ./.env): bot secrets + DOMAIN. Optional override:
 #   export PAYBACK_ENV_FILE=$HOME/.config/payback/env
 #   docker compose up --build -d

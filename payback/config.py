@@ -1,18 +1,17 @@
-"""Settings read from environment variables (docs/spec.md §9).
+"""Settings read from environment variables.
 
 The Planfix object, field and status ids add up to ~20 variables. They are grouped
 into nested settings models that each read their own prefix, so the environment
-names stay exactly as the spec documents them (``PLANFIX_FIELD_AMOUNT``) while code
+names stay exactly as documented (``PLANFIX_FIELD_AMOUNT``) while code
 reads ``settings.planfix.fields.amount``.
 
-Two findings from docs/planfix-notes.md shape this module:
+Two PlanFix quirks shape this module:
 
-* Status **names differ between accounts** — id 108 is "компенсация завершена" on the
-  test account but "Компенсировано" in the spec — so every status is addressed by id.
-  The webhook body carries a name, and the bot never trusts it (spec §8).
-* The account carries **duplicate custom fields** (141470/141472 next to the real
-  141370/141372) that could not be deleted. A name-based field lookup would be
-  ambiguous, so field ids are always configured explicitly.
+* Status **names differ between accounts** — e.g. id 108 may be "компенсация завершена"
+  on one account and "Компенсировано" on another — so every status is addressed by id.
+  The webhook body carries a name, and the bot never trusts it.
+* Accounts can carry **duplicate custom fields** (undeletable twins). A name-based
+  field lookup would be ambiguous, so field ids are always configured explicitly.
 """
 
 from decimal import Decimal
@@ -32,13 +31,13 @@ def _env(name: str) -> Any:
     Spelling the variable out rather than deriving it from an ``env_prefix`` is what
     makes a misconfiguration readable: pydantic reports the missing key as
     ``PLANFIX_FIELD_AMOUNT`` instead of ``PlanfixFieldIds.amount``, which is what the
-    startup check in spec §8 is supposed to print.
+    startup check is supposed to print.
     """
     return Field(validation_alias=name)
 
 
 class PlanfixFieldIds(BaseSettings):
-    """Ids of the custom task fields making up the "Расход" card (spec §6)."""
+    """Ids of the custom task fields making up the "Расход" card."""
 
     model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
 
@@ -63,7 +62,7 @@ class PlanfixFieldIds(BaseSettings):
 
 
 class PlanfixStatusIds(BaseSettings):
-    """Ids of the "Расход" status set (spec §5)."""
+    """Ids of the "Расход" status set."""
 
     model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
 
@@ -111,7 +110,7 @@ class PlanfixSettings(BaseSettings):
 
     @property
     def rest_base_url(self) -> str:
-        """Base URL of the REST API (planfix-notes.md §6)."""
+        """Base URL of the REST API."""
         return f"{self.account}/rest"
 
 
@@ -154,7 +153,7 @@ class Settings(BaseSettings):
     def blank_means_unset(cls, value: object) -> object:
         """An empty variable means "not set".
 
-        Spec §9 defines NO_RECEIPT_MAX_AMOUNT as "пусто — без ограничения", and
+        Empty NO_RECEIPT_MAX_AMOUNT means "no cap", and
         .env files carry empty values far more often than missing lines.
         """
         if isinstance(value, str) and not value.strip():

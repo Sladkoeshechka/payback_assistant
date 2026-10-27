@@ -1,4 +1,4 @@
-"""Telegram adapter for ``NotifierPort`` (stage 8C)."""
+"""Telegram adapter for ``NotifierPort``."""
 
 import logging
 

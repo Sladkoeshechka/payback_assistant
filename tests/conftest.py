@@ -21,7 +21,7 @@ from payback.db.base import Base
 from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
-"""Responses captured from the real Planfix API (planfix-notes.md §9)."""
+"""Responses captured from the real PlanFix API."""
 
 # Prod-like default (separate DB so `make run` data is untouched).
 # Override with PAYBACK_TEST_DATABASE_URL or PAYBACK_TEST_DB=sqlite.

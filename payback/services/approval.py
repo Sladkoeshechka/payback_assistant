@@ -1,4 +1,4 @@
-"""Manager decisions on pending expenses (stage 8A)."""
+"""Manager decisions on pending expenses."""
 
 import logging
 from collections.abc import Mapping

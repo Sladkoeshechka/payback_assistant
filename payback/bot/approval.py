@@ -1,4 +1,4 @@
-"""Telegram handlers for manager approve / reject / clarification (stage 8A)."""
+"""Telegram handlers for manager approve / reject / clarification."""
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext

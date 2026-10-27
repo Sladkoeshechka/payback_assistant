@@ -1,4 +1,4 @@
-"""Structured JSON logging (spec §9, "Наблюдаемость").
+"""Structured JSON logging.
 
 Two things on top of a plain formatter:
 

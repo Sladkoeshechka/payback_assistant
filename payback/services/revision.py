@@ -1,4 +1,4 @@
-"""Employee replies while an expense needs revision (stage 8D)."""
+"""Employee replies while an expense needs revision."""
 
 from payback.config import PlanfixStatusIds
 from payback.db.models import Expense, ExpenseStatus, User

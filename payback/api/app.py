@@ -1,4 +1,4 @@
-"""FastAPI application factory (stage 9A-9E)."""
+"""FastAPI application factory."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def create_app(
     settings = settings if settings is not None else get_settings()
     app = FastAPI(title="payback", version=__version__, lifespan=_lifespan)
     app.state.webhook_secret = settings.webhook_secret.get_secret_value()
-    # Testable sink for 9B; processing still appends here when configured.
+    # Testable sink for webhook intake; processing still appends here when configured.
     app.state.webhook_events = []
     app.state.session_factory = session_factory
     app.state.engine = engine

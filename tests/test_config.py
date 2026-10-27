@@ -155,7 +155,7 @@ def test_duplicate_field_ids_are_rejected(
 def test_blank_optional_values_mean_unset(
     env: dict[str, str], monkeypatch: pytest.MonkeyPatch, blank: str
 ) -> None:
-    """Spec §9: an empty NO_RECEIPT_MAX_AMOUNT means "no cap"."""
+    """An empty NO_RECEIPT_MAX_AMOUNT means "no cap"."""
     monkeypatch.setenv("NO_RECEIPT_MAX_AMOUNT", blank)
     monkeypatch.setenv("PROXY_URL", blank)
 

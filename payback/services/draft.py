@@ -1,4 +1,4 @@
-"""In-memory expense draft carried through the submission FSM (stage 7)."""
+"""In-memory expense draft carried through the submission FSM."""
 
 from dataclasses import asdict, dataclass
 from datetime import date
