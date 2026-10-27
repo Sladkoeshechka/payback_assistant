@@ -19,7 +19,7 @@ cp .env.example ~/.config/payback/env
 # edit ~/.config/payback/env — fill BOT_TOKEN, PlanFix, WEBHOOK_SECRET, DOMAIN, …
 ```
 
-For a first smoke test, `DEV_MODE=true` lets the bot start even if PlanFix schema validation fails.
+Local offline Telegram tests: set both `DEV_MODE=true` and `ALLOW_DEV_MODE=true` so a unreachable PlanFix can fall back to FakePlanFix. Schema mismatches still refuse to start. Never enable either flag in production.
 
 ## Run
 

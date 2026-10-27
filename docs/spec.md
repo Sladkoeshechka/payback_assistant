@@ -513,7 +513,8 @@ payback/
 | `MAX_AMOUNT`, `MAX_RECEIPT_AGE_DAYS` | Ограничения валидации |
 | `ALLOW_NO_RECEIPT` | Разрешить заявки без чека (`true`/`false`) |
 | `NO_RECEIPT_MAX_AMOUNT` | Максимальная сумма заявки без чека; пусто — без ограничения |
-| `DEV_MODE` | Режим разработки: разрешает fallback на FakePlanfix при недоступном ПланФиксе. В продакшене выключен |
+| `DEV_MODE` | Режим разработки: fallback на FakePlanFix при недоступном ПланФиксе. Требует `ALLOW_DEV_MODE=true`. В продакшене выключен |
+| `ALLOW_DEV_MODE` | Явный non-prod допуск. Без него `DEV_MODE=true` не даёт стартовать |
 
 В репозитории лежит `.env.example` с пустыми значениями; сам `.env` в репозиторий не попадает.
 

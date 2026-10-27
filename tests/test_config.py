@@ -27,7 +27,36 @@ def test_defaults_apply_when_optional_variables_are_absent(env: dict[str, str]) 
     assert settings.allow_no_receipt is True
     assert settings.no_receipt_max_amount is None
     assert settings.dev_mode is False
+    assert settings.allow_dev_mode is False
     assert settings.proxy_url is None
+
+
+def test_prod_like_env_without_dev_mode_loads(env: dict[str, str]) -> None:
+    """Default settings load with DEV_MODE off."""
+    settings = Settings()
+    assert settings.dev_mode is False
+    assert settings.allow_dev_mode is False
+
+
+def test_dev_mode_without_allow_is_rejected(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DEV_MODE without ALLOW_DEV_MODE must not load."""
+    monkeypatch.setenv("DEV_MODE", "true")
+
+    with pytest.raises(ValidationError, match="ALLOW_DEV_MODE"):
+        Settings()
+
+
+def test_dev_mode_with_allow_loads(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEV_MODE", "true")
+    monkeypatch.setenv("ALLOW_DEV_MODE", "true")
+
+    settings = Settings()
+    assert settings.dev_mode is True
+    assert settings.allow_dev_mode is True
 
 
 def test_missing_variable_is_reported_by_name(

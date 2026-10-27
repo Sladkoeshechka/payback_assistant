@@ -140,6 +140,11 @@ class Settings(BaseSettings):
     no_receipt_max_amount: Decimal | None = None
 
     dev_mode: bool = False
+    """When true (and ALLOW_DEV_MODE), PlanFix outages fall back to FakePlanFix."""
+
+    allow_dev_mode: bool = False
+    """Explicit non-prod admit. Required if DEV_MODE=true."""
+
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     planfix: PlanfixSettings = Field(default_factory=lambda: PlanfixSettings())
@@ -174,6 +179,15 @@ class Settings(BaseSettings):
     def no_receipt_limit_within_max(self) -> "Settings":
         if self.no_receipt_max_amount is not None and self.no_receipt_max_amount > self.max_amount:
             raise ValueError("NO_RECEIPT_MAX_AMOUNT must not exceed MAX_AMOUNT")
+        return self
+
+    @model_validator(mode="after")
+    def dev_mode_requires_explicit_allow(self) -> "Settings":
+        if self.dev_mode and not self.allow_dev_mode:
+            raise ValueError(
+                "DEV_MODE=true requires ALLOW_DEV_MODE=true "
+                "(refuses to start without an explicit non-prod admit)"
+            )
         return self
 
     def secrets(self) -> list[str]:

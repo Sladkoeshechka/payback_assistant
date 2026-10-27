@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 EXIT_BAD_CONFIG = 2
 EXIT_SIGINT = 130
 
-# Stable fake directory ids for offline DEV_MODE (no live Planfix).
+# Stable fake directory ids for offline DEV_MODE (no live PlanFix).
 _DEV_CATEGORY_DIRECTORY_ID = 9001
 _DEV_DIRECTION_DIRECTORY_ID = 9002
 
@@ -60,6 +60,7 @@ def describe(settings: Settings) -> dict[str, object]:
         "planfix_object_id": settings.planfix.object_id,
         "database": settings.database_url.split("://", 1)[0],
         "dev_mode": settings.dev_mode,
+        "allow_dev_mode": settings.allow_dev_mode,
         "allow_no_receipt": settings.allow_no_receipt,
         "max_amount": str(settings.max_amount),
         "max_receipt_age_days": settings.max_receipt_age_days,
@@ -68,7 +69,7 @@ def describe(settings: Settings) -> dict[str, object]:
 
 
 def offline_planfix_stack() -> tuple[FakePlanfix, PlanfixSchema]:
-    """In-memory Planfix stand-in with sample directories for local Telegram tests."""
+    """In-memory PlanFix stand-in with sample directories for local Telegram tests."""
     planfix = FakePlanfix(
         directory_entries={
             _DEV_CATEGORY_DIRECTORY_ID: [
@@ -92,7 +93,10 @@ def offline_planfix_stack() -> tuple[FakePlanfix, PlanfixSchema]:
 async def connect_planfix(
     settings: Settings,
 ) -> tuple[PlanfixPort, PlanfixSchema, Any | None]:
-    """Return a live Planfix client, or an offline fake when ``DEV_MODE`` allows it.
+    """Return a live PlanFix client, or FakePlanfix when DEV_MODE (with ALLOW_DEV_MODE).
+
+    Schema mismatches always fail startup. Transport/other failures may fall back
+    to FakePlanfix only when ``dev_mode`` is set.
 
     The third value is the live ``PlanfixClient`` to close on shutdown, if any.
     """
@@ -101,14 +105,16 @@ async def connect_planfix(
         schema = await validate_planfix_schema(client, settings.planfix)
     except PlanfixSchemaError:
         await client.aclose()
-        # Configuration/schema mismatch must fail startup (stage 10 A3).
+        # Configuration/schema mismatch must fail startup.
         raise
     except Exception:
         await client.aclose()
         if not settings.dev_mode:
             raise
-        logger.warning(
-            "Planfix unavailable; DEV_MODE uses FakePlanfix with sample directories",
+        logger.error(
+            "!!! FAKE PLANFIX IN USE !!! PlanFix unreachable; "
+            "DEV_MODE+ALLOW_DEV_MODE fallback with sample directories — "
+            "not for production",
             exc_info=True,
         )
         fake, schema = offline_planfix_stack()
@@ -143,7 +149,7 @@ async def main() -> int:
     try:
         planfix, planfix_schema, live_client = await connect_planfix(settings)
     except Exception:
-        logger.exception("Planfix schema validation failed")
+        logger.exception("PlanFix schema validation failed")
         await bot.session.close()
         await engine.dispose()
         return 1
