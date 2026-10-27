@@ -9,5 +9,4 @@ __pycache__/
 *.egg-info/
 docs/planfix-notes.md
 docs/api_requests/
-docs/planfix_setup/
 docs/swagger.json
