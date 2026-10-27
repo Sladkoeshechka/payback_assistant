@@ -30,11 +30,18 @@ def _dedupe_payloads(values: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(value for value in values if value))
 
 
+def _decode_image_matrix(image: bytes) -> np.ndarray | None:
+    """Decode image bytes; empty buffers raise in OpenCV 5, so guard first."""
+    if not image:
+        return None
+    return cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+
 class OpenCVQRCodeDecoder:
     """Decode QR codes with OpenCV, which has no system-library dependency."""
 
     def decode(self, image: bytes) -> list[str]:
-        matrix = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
+        matrix = _decode_image_matrix(image)
         if matrix is None:
             return []
         detector = cv2.QRCodeDetector()
@@ -67,14 +74,8 @@ class PyzbarQRCodeDecoder:
     """Optional ZBar implementation for receipt photos OpenCV cannot read."""
 
     def decode(self, image: bytes) -> list[str]:
-        try:
-            from pyzbar.pyzbar import decode
-        except (ImportError, OSError) as error:
-            raise QRDecoderUnavailableError(
-                "pyzbar requires the optional zbar dependency and libzbar.so"
-            ) from error
-
-        matrix = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
+        decode = _import_pyzbar_decode()
+        matrix = _decode_image_matrix(image)
         if matrix is None:
             return []
         payloads: list[str] = []
@@ -89,6 +90,16 @@ class PyzbarQRCodeDecoder:
         return _dedupe_payloads(payloads)
 
 
+def _import_pyzbar_decode():
+    try:
+        from pyzbar.pyzbar import decode
+    except (ImportError, OSError) as error:
+        raise QRDecoderUnavailableError(
+            "pyzbar requires the optional zbar dependency and libzbar.so"
+        ) from error
+    return decode
+
+
 _default_decoders: tuple[QRDecoder, ...] | None = None
 
 
@@ -99,7 +110,7 @@ def default_qr_decoders() -> tuple[QRDecoder, ...]:
         return _default_decoders
     decoders: list[QRDecoder] = [OpenCVQRCodeDecoder()]
     try:
-        PyzbarQRCodeDecoder().decode(b"")
+        _import_pyzbar_decode()
     except QRDecoderUnavailableError:
         pass
     else:

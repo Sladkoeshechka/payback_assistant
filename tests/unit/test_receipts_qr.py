@@ -4,7 +4,12 @@ from pathlib import Path
 import pytest
 
 from payback.receipts.fiscal import FiscalParseError, parse_fiscal_qr
-from payback.receipts.qr import OpenCVQRCodeDecoder, QRCodeNotFoundError, decode_qr
+from payback.receipts.qr import (
+    OpenCVQRCodeDecoder,
+    QRCodeNotFoundError,
+    decode_qr,
+    default_qr_decoders,
+)
 
 _RECEIPTS = Path(__file__).resolve().parents[1] / "fixtures" / "receipts"
 _EXPECTED_QR = "t=20261002T1153&s=890.00&fn=7284440500112233&i=40512&fp=3141592653&n=1"
@@ -34,6 +39,13 @@ async def test_qr_with_malformed_fiscal_data_is_decoded_then_rejected(receipt_im
 
     with pytest.raises(FiscalParseError):
         parse_fiscal_qr(qr_values[0])
+
+
+async def test_default_decoders_probe_does_not_crash() -> None:
+    chain = default_qr_decoders()
+    assert isinstance(chain[0], OpenCVQRCodeDecoder)
+    # Second call must reuse the cached chain (including after a failed empty probe).
+    assert default_qr_decoders() is chain
 
 
 async def test_opencv_falls_back_to_single_qr_when_multi_fails(
