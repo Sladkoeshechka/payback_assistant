@@ -262,13 +262,26 @@ async def flush_pending_submissions(
     field_ids: PlanfixFieldIds,
     download_file: DownloadFile | None = None,
 ) -> int:
-    """Retry PlanFix publish for every ``pending_submission`` row; notify on success."""
+    """Claim and resume ``pending_submission`` rows one-by-one; notify on success.
+
+    Each claim uses a row lock (``SKIP LOCKED`` on Postgres) so concurrent flushers
+    do not publish the same expense twice. Rows still pending after an attempt are
+    not retried again in the same pass.
+    """
     done = 0
-    async with session_factory() as session:
-        expenses = ExpensesRepo(session)
-        users = UsersRepo(session)
-        service = SubmissionService(expenses, planfix, notifier, field_ids)
-        for expense in await expenses.list_pending_submission():
+    attempted: set[int] = set()
+    while True:
+        async with session_factory() as session:
+            expenses = ExpensesRepo(session)
+            users = UsersRepo(session)
+            expense = await expenses.claim_next_pending_submission()
+            if expense is None:
+                break
+            if expense.id in attempted:
+                await session.rollback()
+                break
+            attempted.add(expense.id)
+            service = SubmissionService(expenses, planfix, notifier, field_ids)
             try:
                 image_bytes = None
                 if expense.telegram_file_id and download_file is not None:

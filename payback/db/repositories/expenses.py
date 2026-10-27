@@ -129,15 +129,25 @@ class ExpensesRepo:
         )
         return list(result)
 
-    async def list_pending_submission(self) -> list[Expense]:
-        """Expenses waiting for PlanFix create/upload/attach to finish."""
-        result = await self._session.scalars(
+    async def claim_next_pending_submission(self) -> Expense | None:
+        """Lock the next ``pending_submission`` row for flush (skip rows locked by others).
+
+        On PostgreSQL uses ``FOR UPDATE SKIP LOCKED`` so two workers do not resume the
+        same expense. Other dialects fall back to a plain ``FOR UPDATE``.
+        """
+        stmt = (
             select(Expense)
             .where(Expense.status == ExpenseStatus.PENDING_SUBMISSION)
             .options(selectinload(Expense.employee))
             .order_by(Expense.created_at.asc(), Expense.id.asc())
+            .limit(1)
         )
-        return list(result)
+        bind = self._session.get_bind()
+        if bind is not None and bind.dialect.name == "postgresql":
+            stmt = stmt.with_for_update(skip_locked=True)
+        else:
+            stmt = stmt.with_for_update()
+        return await self._session.scalar(stmt)
 
     async def list_pending_for_manager(self, manager_id: int) -> list[Expense]:
         """Return subordinates' expenses waiting for this manager's decision."""

@@ -1,7 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from tests.conftest import using_sqlite_tests
 
 from payback.config import Settings
 from payback.db.models import ExpenseStatus, User, UserRole
@@ -87,3 +90,40 @@ async def test_flush_pending_submissions_after_planfix_recovers(
         task_id = row.planfix_task_id
     assert notifier.employee_texts
     assert str(task_id) in notifier.employee_texts[0]["text"]
+
+
+async def test_claim_next_pending_submission_returns_row(
+    env: dict[str, str], session: AsyncSession
+) -> None:
+    manager, employee = await _people(session)
+    service = SubmissionService(
+        ExpensesRepo(session), FakePlanfix(fail_on="create_task"), FakeNotifier(), Settings().planfix.fields
+    )
+    partial = await service.submit(_draft(), employee=employee, manager=manager)
+    await session.commit()
+
+    claimed = await ExpensesRepo(session).claim_next_pending_submission()
+    assert claimed is not None
+    assert claimed.id == partial.id
+
+
+@pytest.mark.skipif(using_sqlite_tests(), reason="FOR UPDATE SKIP LOCKED needs Postgres")
+async def test_second_claim_skips_locked_pending_row(
+    env: dict[str, str], session: AsyncSession, db_engine
+) -> None:
+    manager, employee = await _people(session)
+    fields = Settings().planfix.fields
+    service = SubmissionService(
+        ExpensesRepo(session), FakePlanfix(fail_on="create_task"), FakeNotifier(), fields
+    )
+    partial = await service.submit(_draft(), employee=employee, manager=manager)
+    await session.commit()
+
+    session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with session_factory() as first:
+        claimed = await ExpensesRepo(first).claim_next_pending_submission()
+        assert claimed is not None
+        assert claimed.id == partial.id
+        async with session_factory() as second:
+            skipped = await ExpensesRepo(second).claim_next_pending_submission()
+            assert skipped is None
