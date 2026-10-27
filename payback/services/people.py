@@ -162,6 +162,40 @@ class PeopleService:
         await self._users.set_active(employee, True)
         return employee
 
+    async def list_transfer_targets(self, manager_telegram_id: int) -> list[User]:
+        """Active managers other than the caller — candidates to receive a subordinate."""
+        manager = await self.verify_manager(manager_telegram_id)
+        return await self._users.list_active_managers(exclude_id=manager.id)
+
+    async def reassign_subordinate(
+        self,
+        manager_telegram_id: int,
+        employee_id: int,
+        new_manager_id: int,
+    ) -> tuple[User, User]:
+        """Move an employee to another active manager. Open expenses stay with old cards.
+
+        Returns ``(employee, new_manager)``.
+        """
+        manager = await self.verify_manager(manager_telegram_id)
+        employee = await self._users.get_by_id(employee_id)
+        if (
+            employee is None
+            or employee.manager_id != manager.id
+            or employee.role != UserRole.EMPLOYEE
+        ):
+            raise StaffMemberNotFoundError("subordinate is not available to reassign")
+        new_manager = await self._users.get_by_id(new_manager_id)
+        if (
+            new_manager is None
+            or new_manager.id == manager.id
+            or new_manager.role != UserRole.MANAGER
+            or not new_manager.is_active
+        ):
+            raise StaffMemberNotFoundError("target manager is not available")
+        await self._users.set_manager(employee, new_manager.id)
+        return employee, new_manager
+
     async def link_planfix_user(self, manager_telegram_id: int, planfix_user_id: int) -> User:
         """Bind the manager's local account to a Planfix user id."""
         manager = await self.verify_manager(manager_telegram_id)

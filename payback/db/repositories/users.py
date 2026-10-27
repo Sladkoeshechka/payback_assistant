@@ -79,8 +79,25 @@ class UsersRepo:
         )
         return list(result)
 
+    async def list_active_managers(self, *, exclude_id: int | None = None) -> list[User]:
+        """Active managers, optionally skipping one id (usually the caller)."""
+        query = select(User).where(
+            User.role == UserRole.MANAGER,
+            User.is_active.is_(True),
+        )
+        if exclude_id is not None:
+            query = query.where(User.id != exclude_id)
+        result = await self._session.scalars(
+            query.order_by(User.last_name, User.first_name, User.id)
+        )
+        return list(result)
+
     async def set_active(self, user: User, is_active: bool) -> None:
         user.is_active = is_active
+        await self._session.flush()
+
+    async def set_manager(self, user: User, manager_id: int) -> None:
+        user.manager_id = manager_id
         await self._session.flush()
 
     async def link_planfix_user(self, user: User, planfix_user_id: int | None) -> None:

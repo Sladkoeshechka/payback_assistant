@@ -60,6 +60,50 @@ async def test_staff_lists_people_and_revokes_invite(
     assert employee.is_active is True
 
 
+async def test_staff_reassigns_employee_to_another_manager(
+    env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
+) -> None:
+    settings = Settings()
+    users = UsersRepo(session)
+    manager, employee, _ = await _staff_fixture(session, settings)
+    other = await users.create(
+        telegram_id=3,
+        first_name="Grace",
+        last_name="Hopper",
+        role=UserRole.MANAGER,
+    )
+    await session.commit()
+
+    telegram_session = RecordingSession()
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=telegram_session)
+    dispatcher = create_dispatcher(
+        settings,
+        async_sessionmaker(db_engine, expire_on_commit=False),
+        planfix=_staff_planfix(),
+    )
+
+    await dispatcher.feed_raw_update(
+        bot, _callback_update(1, manager.telegram_id, f"staff:xfer:{employee.id}")
+    )
+    assert getattr(telegram_session.methods[-2], "text", None) == (
+        "Кому передать сотрудника Ada Lovelace?"
+    )
+
+    await dispatcher.feed_raw_update(
+        bot,
+        _callback_update(
+            2, manager.telegram_id, f"staff:xferto:{employee.id}:{other.id}"
+        ),
+    )
+    await session.refresh(employee)
+    assert employee.manager_id == other.id
+    assert any(
+        getattr(method, "text", None)
+        == "Сотрудник Ada Lovelace передан руководителю Grace Hopper."
+        for method in telegram_session.methods
+    )
+
+
 async def test_staff_deactivates_employee_and_links_planfix(
     env: dict[str, str], db_engine: AsyncEngine, session: AsyncSession
 ) -> None:

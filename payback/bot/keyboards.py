@@ -4,7 +4,7 @@
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from payback.db.models import Invite, UserRole
+from payback.db.models import Invite, User, UserRole
 from payback.planfix.models import PlanfixDirectoryEntry, PlanfixUser
 from payback.services.people import StaffOverview
 
@@ -42,6 +42,14 @@ def staff_keyboard(overview: StaffOverview) -> InlineKeyboardMarkup:
                     )
                 ]
             )
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"Передать: {name}",
+                    callback_data=f"staff:xfer:{employee.id}",
+                )
+            ]
+        )
     for invite in overview.invites:
         rows.append(
             [
@@ -52,6 +60,23 @@ def staff_keyboard(overview: StaffOverview) -> InlineKeyboardMarkup:
             ]
         )
     rows.append([InlineKeyboardButton(text="Связать с ПланФиксом", callback_data="staff:link")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def transfer_managers_keyboard(
+    employee_id: int, managers: list[User]
+) -> InlineKeyboardMarkup:
+    """Pick which manager receives the subordinate."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"{manager.first_name} {manager.last_name}",
+                callback_data=f"staff:xferto:{employee_id}:{manager.id}",
+            )
+        ]
+        for manager in managers
+    ]
+    rows.append([InlineKeyboardButton(text="Отмена", callback_data="staff:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -194,4 +219,5 @@ __all__ = [
     "replace_draft_keyboard",
     "skip_comment_keyboard",
     "staff_keyboard",
+    "transfer_managers_keyboard",
 ]

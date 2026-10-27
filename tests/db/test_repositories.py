@@ -59,6 +59,18 @@ async def test_users_support_manager_relationships_and_owner_bootstrap(
     assert await users.list_active_subordinates(manager.id) == []
     assert await users.list_subordinates(manager.id) == [employee]
 
+    other = await users.create(
+        telegram_id=1002,
+        first_name="Alan",
+        last_name="Turing",
+        role=UserRole.MANAGER,
+    )
+    assert await users.list_active_managers(exclude_id=manager.id) == [other]
+    await users.set_manager(employee, other.id)
+    assert employee.manager_id == other.id
+    assert await users.list_subordinates(manager.id) == []
+    assert await users.list_subordinates(other.id) == [employee]
+
 
 async def test_invites_only_return_unexpired_unconsumed_unrevoked_codes(
     session: AsyncSession,

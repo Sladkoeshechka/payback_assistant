@@ -8,7 +8,11 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from payback.bot import texts
-from payback.bot.keyboards import planfix_users_keyboard, staff_keyboard
+from payback.bot.keyboards import (
+    planfix_users_keyboard,
+    staff_keyboard,
+    transfer_managers_keyboard,
+)
 from payback.planfix.exceptions import PlanfixError
 from payback.planfix.models import PlanfixUser
 from payback.services.people import (
@@ -157,6 +161,62 @@ def create_router() -> Router:
         await callback.answer(
             texts.EMPLOYEE_REACTIVATED.format(full_name=texts.full_name(employee))
         )
+
+    # Register xferto before xfer so "staff:xferto:…" is not shadowed.
+    @router.callback_query(F.data.startswith("staff:xferto:"))
+    async def confirm_transfer(callback: CallbackQuery, people: PeopleService) -> None:
+        if callback.from_user is None or callback.data is None or callback.message is None:
+            return
+        parts = callback.data.split(":")
+        if len(parts) != 4:
+            await callback.answer(texts.STAFF_ACTION_UNAVAILABLE, show_alert=True)
+            return
+        employee_id = int(parts[2])
+        new_manager_id = int(parts[3])
+        try:
+            employee, new_manager = await people.reassign_subordinate(
+                callback.from_user.id, employee_id, new_manager_id
+            )
+        except ManagerRequiredError:
+            await callback.answer(texts.MANAGER_ONLY, show_alert=True)
+            return
+        except StaffMemberNotFoundError:
+            await callback.answer(texts.STAFF_ACTION_UNAVAILABLE, show_alert=True)
+            return
+        if isinstance(callback.message, Message):
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(
+                texts.EMPLOYEE_REASSIGNED.format(
+                    full_name=texts.full_name(employee),
+                    manager_name=texts.full_name(new_manager),
+                )
+            )
+        await callback.answer()
+
+    @router.callback_query(F.data.startswith("staff:xfer:"))
+    async def start_transfer(callback: CallbackQuery, people: PeopleService) -> None:
+        if callback.from_user is None or callback.data is None:
+            return
+        employee_id = int(callback.data.rsplit(":", 1)[1])
+        try:
+            overview = await people.get_staff_overview(callback.from_user.id)
+            targets = await people.list_transfer_targets(callback.from_user.id)
+        except ManagerRequiredError:
+            await callback.answer(texts.MANAGER_ONLY, show_alert=True)
+            return
+        employee = next((e for e in overview.subordinates if e.id == employee_id), None)
+        if employee is None:
+            await callback.answer(texts.STAFF_ACTION_UNAVAILABLE, show_alert=True)
+            return
+        if not targets:
+            await callback.answer(texts.NO_TRANSFER_MANAGERS, show_alert=True)
+            return
+        if isinstance(callback.message, Message):
+            await callback.message.answer(
+                texts.CHOOSE_TRANSFER_MANAGER.format(full_name=texts.full_name(employee)),
+                reply_markup=transfer_managers_keyboard(employee.id, targets),
+            )
+        await callback.answer()
 
     return router
 
