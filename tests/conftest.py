@@ -1,3 +1,5 @@
+"""Root pytest fixtures and shared test doubles."""
+
 import json
 import os
 from collections.abc import AsyncGenerator, AsyncIterator, Iterator
@@ -21,7 +23,8 @@ from payback.db.base import Base
 from payback.logging_setup import clear_redactions
 
 FIXTURES = Path(__file__).parent / "fixtures" / "planfix"
-"""Responses captured from the real PlanFix API."""
+RECEIPTS = Path(__file__).parent / "fixtures" / "receipts"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Prod-like default (separate DB so `make run` data is untouched).
 # Override with PAYBACK_TEST_DATABASE_URL or PAYBACK_TEST_DB=sqlite.
@@ -177,3 +180,23 @@ async def session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 def _no_leftover_redactions() -> Iterator[None]:
     yield
     clear_redactions()
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Mark tests by folder for selective runs (``-m unit``, ``-m db``, …)."""
+    for item in items:
+        path = Path(str(item.path)).as_posix()
+        if "/tests/unit/" in path:
+            item.add_marker(pytest.mark.unit)
+        elif "/tests/services/" in path:
+            item.add_marker(pytest.mark.services)
+            item.add_marker(pytest.mark.db)
+        elif "/tests/bot/" in path:
+            item.add_marker(pytest.mark.bot)
+            item.add_marker(pytest.mark.db)
+        elif "/tests/api/" in path:
+            item.add_marker(pytest.mark.api)
+        elif "/tests/planfix/" in path:
+            item.add_marker(pytest.mark.planfix)
+        elif "/tests/db/" in path:
+            item.add_marker(pytest.mark.db)

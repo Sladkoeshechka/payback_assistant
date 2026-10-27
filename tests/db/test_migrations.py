@@ -38,7 +38,7 @@ def test_upgrade_head_creates_usable_schema(
 ) -> None:
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'payback.db'}"
     monkeypatch.setenv("DATABASE_URL", database_url)
-    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
 
     command.upgrade(config, "head")
 

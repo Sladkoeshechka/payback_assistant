@@ -5,9 +5,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from conftest import load_fixture
+from tests.conftest import load_fixture
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from planfix_ids import format_report, match_fields, match_statuses  # noqa: E402

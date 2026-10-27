@@ -47,9 +47,18 @@ include = ["payback*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = ["error"]
+markers = [
+    "unit: pure unit tests (no DB)",
+    "services: domain service tests",
+    "bot: Telegram handler tests",
+    "api: FastAPI / webhook tests",
+    "planfix: PlanFix client tests",
+    "db: needs database",
+]
 
 [tool.ruff]
 line-length = 100

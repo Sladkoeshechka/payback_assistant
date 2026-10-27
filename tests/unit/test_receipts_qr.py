@@ -6,7 +6,7 @@ import pytest
 from payback.receipts.fiscal import FiscalParseError, parse_fiscal_qr
 from payback.receipts.qr import QRCodeNotFoundError, decode_qr
 
-_RECEIPTS = Path(__file__).parent / "fixtures" / "receipts"
+_RECEIPTS = Path(__file__).resolve().parents[1] / "fixtures" / "receipts"
 _EXPECTED_QR = "t=20261002T1153&s=890.00&fn=7284440500112233&i=40512&fp=3141592653&n=1"
 
 

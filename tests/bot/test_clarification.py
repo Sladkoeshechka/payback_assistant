@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from aiogram import Bot
-from conftest import RecordingSession
+from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot import texts

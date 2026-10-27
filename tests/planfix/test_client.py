@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 import respx
-from conftest import load_fixture
+from tests.conftest import load_fixture
 
 from payback.config import Settings
 from payback.planfix.client import PlanfixClient

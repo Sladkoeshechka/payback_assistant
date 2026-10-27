@@ -15,7 +15,7 @@ from payback.receipts.validation import (
     validate_receipt,
 )
 
-_RECEIPTS = Path(__file__).parent / "fixtures" / "receipts"
+_RECEIPTS = Path(__file__).resolve().parents[1] / "fixtures" / "receipts"
 
 
 def test_accepts_valid_jpeg_and_png() -> None:
