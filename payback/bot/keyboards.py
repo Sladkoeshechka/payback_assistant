@@ -63,9 +63,7 @@ def staff_keyboard(overview: StaffOverview) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def transfer_managers_keyboard(
-    employee_id: int, managers: list[User]
-) -> InlineKeyboardMarkup:
+def transfer_managers_keyboard(employee_id: int, managers: list[User]) -> InlineKeyboardMarkup:
     """Pick which manager receives the subordinate."""
     rows = [
         [

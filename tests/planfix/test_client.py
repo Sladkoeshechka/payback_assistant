@@ -5,11 +5,11 @@ import json
 import httpx
 import pytest
 import respx
-from tests.conftest import load_fixture
 
 from payback.config import Settings
 from payback.planfix.client import PlanfixClient
 from payback.planfix.exceptions import PlanfixError, PlanfixNotFound, PlanfixScopeDenied
+from tests.conftest import load_fixture
 
 
 @pytest.fixture

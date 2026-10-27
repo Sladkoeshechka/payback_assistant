@@ -26,6 +26,10 @@ class QRDecoder(Protocol):
     def decode(self, image: bytes) -> list[str]: ...
 
 
+def _dedupe_payloads(values: Iterable[str]) -> list[str]:
+    return list(dict.fromkeys(value for value in values if value))
+
+
 class OpenCVQRCodeDecoder:
     """Decode QR codes with OpenCV, which has no system-library dependency."""
 
@@ -33,13 +37,30 @@ class OpenCVQRCodeDecoder:
         matrix = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
         if matrix is None:
             return []
-        try:
-            ok, values, _, _ = cv2.QRCodeDetector().detectAndDecodeMulti(matrix)
-        except cv2.error:
-            return []
-        if not ok:
-            return []
-        return [value for value in values if value]
+        detector = cv2.QRCodeDetector()
+        # Single-QR path is more reliable on real phone photos; multi is for several codes.
+        payloads = _dedupe_payloads(_opencv_decode_single(detector, matrix))
+        if payloads:
+            return payloads
+        return _dedupe_payloads(_opencv_decode_multi(detector, matrix))
+
+
+def _opencv_decode_single(detector: cv2.QRCodeDetector, matrix: np.ndarray) -> list[str]:
+    try:
+        value, _, _ = detector.detectAndDecode(matrix)
+    except cv2.error:
+        return []
+    return [value] if value else []
+
+
+def _opencv_decode_multi(detector: cv2.QRCodeDetector, matrix: np.ndarray) -> list[str]:
+    try:
+        ok, values, _, _ = detector.detectAndDecodeMulti(matrix)
+    except cv2.error:
+        return []
+    if not ok:
+        return []
+    return [value for value in values if value]
 
 
 class PyzbarQRCodeDecoder:
@@ -65,17 +86,38 @@ class PyzbarQRCodeDecoder:
                 payloads.append(encoded_value.decode("utf-8"))
             except UnicodeDecodeError:
                 continue
-        return payloads
+        return _dedupe_payloads(payloads)
+
+
+_default_decoders: tuple[QRDecoder, ...] | None = None
+
+
+def default_qr_decoders() -> tuple[QRDecoder, ...]:
+    """OpenCV plus pyzbar when the optional zbar stack is available."""
+    global _default_decoders
+    if _default_decoders is not None:
+        return _default_decoders
+    decoders: list[QRDecoder] = [OpenCVQRCodeDecoder()]
+    try:
+        PyzbarQRCodeDecoder().decode(b"")
+    except QRDecoderUnavailableError:
+        pass
+    else:
+        decoders.append(PyzbarQRCodeDecoder())
+    _default_decoders = tuple(decoders)
+    return _default_decoders
 
 
 async def decode_qr(
-    image: bytes, decoders: Iterable[QRDecoder] = (OpenCVQRCodeDecoder(),)
+    image: bytes,
+    decoders: Iterable[QRDecoder] | None = None,
 ) -> list[str]:
     """Try enabled decoders in a worker thread; return every payload from the first hit."""
-    for decoder in decoders:
+    chain = default_qr_decoders() if decoders is None else decoders
+    for decoder in chain:
         values = await asyncio.to_thread(decoder.decode, image)
         if values:
-            return values
+            return _dedupe_payloads(values)
     raise QRCodeNotFoundError("QR code was not found or could not be read")
 
 
@@ -86,4 +128,5 @@ __all__ = [
     "QRDecoder",
     "QRDecoderUnavailableError",
     "decode_qr",
+    "default_qr_decoders",
 ]

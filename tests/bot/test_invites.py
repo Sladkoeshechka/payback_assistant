@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from aiogram import Bot
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot.app import create_dispatcher
@@ -12,6 +11,7 @@ from payback.config import Settings
 from payback.db.models import Invite, User, UserRole
 from payback.db.repositories.invites import InvitesRepo
 from payback.db.repositories.users import UsersRepo
+from tests.conftest import RecordingSession
 
 
 async def test_manager_creates_employee_invite(

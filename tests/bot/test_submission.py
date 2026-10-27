@@ -5,7 +5,6 @@ from pathlib import Path
 from aiogram import Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
-from tests.conftest import RecordingSession
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -20,6 +19,7 @@ from payback.planfix.directories import DirectoryCache
 from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
 from payback.services.fakes import FakeNotifier, FakePlanfix
 from payback.services.submission import SubmissionService
+from tests.conftest import RecordingSession
 
 _RECEIPT = Path(__file__).resolve().parents[1] / "fixtures" / "receipts" / "valid-receipt.jpg"
 _NO_QR_RECEIPT = Path(__file__).resolve().parents[1] / "fixtures" / "receipts" / "no-qr.jpg"

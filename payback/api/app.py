@@ -111,7 +111,12 @@ def create_app(
     app.state.pending_flush_stop = None
     app.state.pending_flush_factory = None
     app.state.pending_flush_task = None
-    if session_factory is not None and planfix is not None and notifier is not None and bot is not None:
+    if (
+        session_factory is not None
+        and planfix is not None
+        and notifier is not None
+        and bot is not None
+    ):
 
         async def _download(file_id: str) -> bytes:
             file = await bot.get_file(file_id)

@@ -66,3 +66,8 @@ def test_resolve_rejects_multiple_fiscal_payloads() -> None:
 def test_resolve_rejects_when_only_noise() -> None:
     with pytest.raises(FiscalParseError):
         resolve_fiscal_receipt(["hello", "world"])
+
+
+def test_resolve_treats_duplicate_fiscal_payload_as_one() -> None:
+    receipt = resolve_fiscal_receipt([_FISCAL_A, _FISCAL_A])
+    assert receipt.fn == "7284440500112233"

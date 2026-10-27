@@ -4,7 +4,6 @@ from datetime import date
 from decimal import Decimal
 
 from aiogram import Bot
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot import texts
@@ -14,6 +13,7 @@ from payback.db.models import Expense, ExpenseStatus, User, UserRole
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.services.fakes import FakeNotifier, FakePlanfix
+from tests.conftest import RecordingSession
 
 
 async def test_manager_approve_callback(

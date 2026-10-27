@@ -4,7 +4,6 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from aiogram import Bot
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot.app import create_dispatcher
@@ -16,6 +15,7 @@ from payback.db.repositories.users import UsersRepo
 from payback.planfix.directories import DirectoryCache
 from payback.planfix.models import PlanfixUser
 from payback.services.fakes import FakePlanfix
+from tests.conftest import RecordingSession
 
 
 def _staff_planfix() -> FakePlanfix:
@@ -91,15 +91,12 @@ async def test_staff_reassigns_employee_to_another_manager(
 
     await dispatcher.feed_raw_update(
         bot,
-        _callback_update(
-            2, manager.telegram_id, f"staff:xferto:{employee.id}:{other.id}"
-        ),
+        _callback_update(2, manager.telegram_id, f"staff:xferto:{employee.id}:{other.id}"),
     )
     await session.refresh(employee)
     assert employee.manager_id == other.id
     assert any(
-        getattr(method, "text", None)
-        == "Сотрудник Ada Lovelace передан руководителю Grace Hopper."
+        getattr(method, "text", None) == "Сотрудник Ada Lovelace передан руководителю Grace Hopper."
         for method in telegram_session.methods
     )
 

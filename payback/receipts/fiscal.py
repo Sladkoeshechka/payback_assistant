@@ -56,11 +56,17 @@ def parse_fiscal_qr(value: str) -> FiscalReceipt:
 def resolve_fiscal_receipt(values: list[str]) -> FiscalReceipt:
     """Pick the single fiscal payload; ignore non-fiscal noise; refuse if several fiscals."""
     receipts: list[FiscalReceipt] = []
-    for value in values:
+    for value in dict.fromkeys(values):
         try:
-            receipts.append(parse_fiscal_qr(value))
+            parsed = parse_fiscal_qr(value)
         except FiscalParseError:
             continue
+        if any(
+            parsed.fn == existing.fn and parsed.fd == existing.fd and parsed.fp == existing.fp
+            for existing in receipts
+        ):
+            continue
+        receipts.append(parsed)
     if not receipts:
         raise FiscalParseError("No fiscal QR payload found")
     if len(receipts) > 1:

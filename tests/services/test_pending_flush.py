@@ -4,16 +4,14 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from tests.conftest import using_sqlite_tests
-
 from payback.config import Settings
 from payback.db.models import ExpenseStatus, User, UserRole
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
-from payback.services.submission import flush_pending_submissions
 from payback.services.draft import SubmissionDraft
 from payback.services.fakes import FakeNotifier, FakePlanfix
-from payback.services.submission import SubmissionService
+from payback.services.submission import SubmissionService, flush_pending_submissions
+from tests.conftest import using_sqlite_tests
 
 
 async def _people(session: AsyncSession) -> tuple[User, User]:
@@ -97,7 +95,10 @@ async def test_claim_next_pending_submission_returns_row(
 ) -> None:
     manager, employee = await _people(session)
     service = SubmissionService(
-        ExpensesRepo(session), FakePlanfix(fail_on="create_task"), FakeNotifier(), Settings().planfix.fields
+        ExpensesRepo(session),
+        FakePlanfix(fail_on="create_task"),
+        FakeNotifier(),
+        Settings().planfix.fields,
     )
     partial = await service.submit(_draft(), employee=employee, manager=manager)
     await session.commit()

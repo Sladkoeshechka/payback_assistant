@@ -249,8 +249,6 @@ class SubmissionService:
             raise DuplicateReceiptError(existing)
 
 
-
-
 DownloadFile = Callable[[str], Awaitable[bytes]]
 
 
@@ -341,9 +339,10 @@ async def pending_flush_loop(
         except TimeoutError:
             continue
 
+
 __all__ = [
-    "DuplicateReceiptError",
     "PENDING_FLUSH_INTERVAL_SECONDS",
+    "DuplicateReceiptError",
     "SubmissionService",
     "flush_pending_submissions",
     "format_duplicate_receipt_message",

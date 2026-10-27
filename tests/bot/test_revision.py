@@ -5,7 +5,6 @@ from decimal import Decimal
 from pathlib import Path
 
 from aiogram import Bot
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot import texts
@@ -15,6 +14,7 @@ from payback.db.models import Expense, ExpenseStatus, User, UserRole
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.db.repositories.users import UsersRepo
 from payback.services.fakes import FakeNotifier, FakePlanfix
+from tests.conftest import RecordingSession
 
 _RECEIPT = Path(__file__).resolve().parents[1] / "fixtures" / "receipts" / "valid-receipt.jpg"
 

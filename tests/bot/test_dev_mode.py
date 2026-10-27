@@ -1,11 +1,11 @@
 from aiogram import Bot
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot.app import create_dispatcher
 from payback.config import Settings
 from payback.db.models import UserRole
 from payback.db.repositories.users import UsersRepo
+from tests.conftest import RecordingSession
 
 
 async def test_inactive_user_is_blocked_by_middleware(

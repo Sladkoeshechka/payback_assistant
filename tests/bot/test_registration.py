@@ -5,12 +5,12 @@ from typing import Any
 
 from aiogram import Bot
 from aiogram.fsm.storage.memory import MemoryStorage
-from tests.conftest import RecordingSession
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from payback.bot.app import create_dispatcher
 from payback.config import Settings
 from payback.db.repositories.users import UsersRepo
+from tests.conftest import RecordingSession
 
 
 def test_create_dispatcher(env: dict[str, str], db_engine: AsyncEngine) -> None:

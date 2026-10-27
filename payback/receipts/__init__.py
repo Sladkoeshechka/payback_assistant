@@ -13,6 +13,7 @@ from payback.receipts.qr import (
     QRCodeNotFoundError,
     QRDecoderUnavailableError,
     decode_qr,
+    default_qr_decoders,
 )
 from payback.receipts.validation import ReceiptValidationError, validate_image, validate_receipt
 
@@ -26,6 +27,7 @@ __all__ = [
     "QRDecoderUnavailableError",
     "ReceiptValidationError",
     "decode_qr",
+    "default_qr_decoders",
     "parse_fiscal_qr",
     "resolve_fiscal_receipt",
     "validate_image",
