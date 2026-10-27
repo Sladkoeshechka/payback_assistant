@@ -20,6 +20,7 @@ NOTIFY_EMPLOYEE_NEEDS_REVISION = (
 NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL = (
     "По заявке №{task_id} нужна доработка.\nОтветьте текстом или фото в этот чат."
 )
+NOTIFY_EMPLOYEE_SUBMITTED = "Заявка №{task_id} отправлена на согласование."
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",
@@ -72,6 +73,10 @@ class NotifierPort(Protocol):
         """Tell the employee the manager's decision (and optional reason/question)."""
         ...
 
+    async def notify_employee_text(self, *, employee: User, text: str) -> None:
+        """Send a free-form message to the employee (e.g. delayed submit success)."""
+        ...
+
 
 def format_employee_decision(*, expense: Expense, detail: str | None = None) -> str:
     """Build the Telegram text for an employee status/decision notification."""
@@ -104,6 +109,7 @@ __all__ = [
     "NOTIFY_EMPLOYEE_NEEDS_REVISION_NO_DETAIL",
     "NOTIFY_EMPLOYEE_REJECTED",
     "NOTIFY_EMPLOYEE_REJECTED_NO_DETAIL",
+    "NOTIFY_EMPLOYEE_SUBMITTED",
     "NotifierPort",
     "format_employee_decision",
 ]

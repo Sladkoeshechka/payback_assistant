@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from io import BytesIO
 from typing import Any
 
 from fastapi import FastAPI
@@ -15,6 +16,7 @@ from payback import __version__
 from payback.api.webhooks import create_router as create_webhook_router
 from payback.config import Settings, get_settings
 from payback.services.ports import NotifierPort, PlanfixPort
+from payback.services.submission import pending_flush_loop
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +47,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         polling_task.add_done_callback(_on_polling_done)
         app.state.polling_task = polling_task
+
+    flush_stop: asyncio.Event | None = getattr(app.state, "pending_flush_stop", None)
+    flush_factory = getattr(app.state, "pending_flush_factory", None)
+    if flush_stop is not None and flush_factory is not None:
+        app.state.pending_flush_task = asyncio.create_task(flush_factory())
+
     try:
         yield
     finally:
+        if flush_stop is not None:
+            flush_stop.set()
+        flush_task = getattr(app.state, "pending_flush_task", None)
+        if flush_task is not None and not flush_task.done():
+            flush_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await flush_task
         if dispatcher is not None:
             with suppress(RuntimeError):
                 await dispatcher.stop_polling()
@@ -93,6 +108,28 @@ def create_app(
     app.state.dispatcher = dispatcher
     app.state.live_planfix_client = live_planfix_client
     app.state.polling_task = None
+    app.state.pending_flush_stop = None
+    app.state.pending_flush_factory = None
+    app.state.pending_flush_task = None
+    if session_factory is not None and planfix is not None and notifier is not None and bot is not None:
+
+        async def _download(file_id: str) -> bytes:
+            file = await bot.get_file(file_id)
+            assert file.file_path is not None
+            buffer = BytesIO()
+            await bot.download_file(file.file_path, destination=buffer)
+            return buffer.getvalue()
+
+        stop = asyncio.Event()
+        app.state.pending_flush_stop = stop
+        app.state.pending_flush_factory = lambda: pending_flush_loop(
+            stop,
+            session_factory,
+            planfix=planfix,
+            notifier=notifier,
+            field_ids=settings.planfix.fields,
+            download_file=_download,
+        )
     app.include_router(create_webhook_router())
 
     @app.get("/health")

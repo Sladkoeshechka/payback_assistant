@@ -163,6 +163,7 @@ class FakeNotifier:
 
     messages: list[dict[str, object]] = field(default_factory=list)
     employee_messages: list[dict[str, object]] = field(default_factory=list)
+    employee_texts: list[dict[str, object]] = field(default_factory=list)
     cleared_keyboards: list[tuple[int, int]] = field(default_factory=list)
     planfix_decision_marks: list[dict[str, object]] = field(default_factory=list)
     fail_on_employee_decision: bool = False
@@ -229,6 +230,9 @@ class FakeNotifier:
                 "detail": detail,
             }
         )
+
+    async def notify_employee_text(self, *, employee: User, text: str) -> None:
+        self.employee_texts.append({"employee_id": employee.id, "text": text})
 
 
 __all__ = ["FakeNotifier", "FakePlanfix"]

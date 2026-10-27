@@ -1,10 +1,17 @@
-"""Push a confirmed expense draft into the local DB and Planfix."""
+"""Push a confirmed expense draft into the local DB and PlanFix."""
 
 # ruff: noqa: RUF001
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from payback.config import PlanfixFieldIds
 from payback.db.models import Expense, ExpenseStatus, User
 from payback.db.repositories.expenses import ExpensesRepo
+from payback.db.repositories.users import UsersRepo
 from payback.planfix.exceptions import PlanfixError
 from payback.services.draft import SubmissionDraft
 from payback.services.expense_card import (
@@ -12,7 +19,12 @@ from payback.services.expense_card import (
     employee_display_name,
     task_name,
 )
+from payback.services.notifications import NOTIFY_EMPLOYEE_SUBMITTED
 from payback.services.ports import NotifierPort, PlanfixPort
+
+logger = logging.getLogger(__name__)
+
+PENDING_FLUSH_INTERVAL_SECONDS = 60.0
 
 _STATUS_LABELS = {
     ExpenseStatus.PENDING_SUBMISSION: "Ожидает отправки",
@@ -237,8 +249,90 @@ class SubmissionService:
             raise DuplicateReceiptError(existing)
 
 
+
+
+DownloadFile = Callable[[str], Awaitable[bytes]]
+
+
+async def flush_pending_submissions(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    planfix: PlanfixPort,
+    notifier: NotifierPort,
+    field_ids: PlanfixFieldIds,
+    download_file: DownloadFile | None = None,
+) -> int:
+    """Retry PlanFix publish for every ``pending_submission`` row; notify on success."""
+    done = 0
+    async with session_factory() as session:
+        expenses = ExpensesRepo(session)
+        users = UsersRepo(session)
+        service = SubmissionService(expenses, planfix, notifier, field_ids)
+        for expense in await expenses.list_pending_submission():
+            try:
+                image_bytes = None
+                if expense.telegram_file_id and download_file is not None:
+                    image_bytes = await download_file(expense.telegram_file_id)
+                manager = (
+                    await users.get_by_id(expense.employee.manager_id)
+                    if expense.employee.manager_id is not None
+                    else None
+                )
+                updated = await service.resume(
+                    expense,
+                    employee=expense.employee,
+                    manager=manager,
+                    image_bytes=image_bytes,
+                )
+                await expenses.commit()
+            except Exception:
+                await session.rollback()
+                logger.exception(
+                    "pending submission flush failed",
+                    extra={"expense_id": expense.id},
+                )
+                continue
+            if updated.status is ExpenseStatus.PENDING and updated.planfix_task_id is not None:
+                await notifier.notify_employee_text(
+                    employee=expense.employee,
+                    text=NOTIFY_EMPLOYEE_SUBMITTED.format(task_id=updated.planfix_task_id),
+                )
+                done += 1
+    return done
+
+
+async def pending_flush_loop(
+    stop: asyncio.Event,
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    planfix: PlanfixPort,
+    notifier: NotifierPort,
+    field_ids: PlanfixFieldIds,
+    download_file: DownloadFile | None = None,
+    interval: float = PENDING_FLUSH_INTERVAL_SECONDS,
+) -> None:
+    """Until ``stop``, periodically call :func:`flush_pending_submissions`."""
+    while not stop.is_set():
+        try:
+            await flush_pending_submissions(
+                session_factory,
+                planfix=planfix,
+                notifier=notifier,
+                field_ids=field_ids,
+                download_file=download_file,
+            )
+        except Exception:
+            logger.exception("pending submission flush loop failed")
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except TimeoutError:
+            continue
+
 __all__ = [
     "DuplicateReceiptError",
+    "PENDING_FLUSH_INTERVAL_SECONDS",
     "SubmissionService",
+    "flush_pending_submissions",
     "format_duplicate_receipt_message",
+    "pending_flush_loop",
 ]

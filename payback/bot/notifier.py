@@ -121,16 +121,15 @@ class TelegramNotifier:
         detail: str | None = None,
     ) -> None:
         text = format_employee_decision(expense=expense, detail=detail)
+        await self.notify_employee_text(employee=employee, text=text)
+
+    async def notify_employee_text(self, *, employee: User, text: str) -> None:
         try:
             await self._bot.send_message(chat_id=employee.telegram_id, text=text)
         except TelegramAPIError:
             logger.exception(
-                "failed to notify employee of decision",
-                extra={
-                    "employee_telegram_id": employee.telegram_id,
-                    "expense_id": expense.id,
-                    "status": expense.status.value,
-                },
+                "failed to notify employee",
+                extra={"employee_telegram_id": employee.telegram_id},
             )
 
 

@@ -129,6 +129,16 @@ class ExpensesRepo:
         )
         return list(result)
 
+    async def list_pending_submission(self) -> list[Expense]:
+        """Expenses waiting for PlanFix create/upload/attach to finish."""
+        result = await self._session.scalars(
+            select(Expense)
+            .where(Expense.status == ExpenseStatus.PENDING_SUBMISSION)
+            .options(selectinload(Expense.employee))
+            .order_by(Expense.created_at.asc(), Expense.id.asc())
+        )
+        return list(result)
+
     async def list_pending_for_manager(self, manager_id: int) -> list[Expense]:
         """Return subordinates' expenses waiting for this manager's decision."""
         result = await self._session.scalars(
