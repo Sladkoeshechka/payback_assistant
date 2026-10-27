@@ -83,12 +83,6 @@ class UsersRepo:
         user.is_active = is_active
         await self._session.flush()
 
-    async def set_role(self, user: User, role: UserRole) -> None:
-        user.role = role
-        if role == UserRole.MANAGER:
-            user.manager_id = None
-        await self._session.flush()
-
     async def link_planfix_user(self, user: User, planfix_user_id: int | None) -> None:
         user.planfix_user_id = planfix_user_id
         await self._session.flush()

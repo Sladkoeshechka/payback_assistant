@@ -1,20 +1,19 @@
-"""Telegram handlers for menu commands and DEV_MODE role switching."""
+"""Telegram handlers for menu commands."""
 
 from datetime import UTC, datetime, timedelta
 
 from aiogram import Router
-from aiogram.filters import Command, CommandObject
+from aiogram.filters import Command
 from aiogram.types import Message
 
 from payback.bot import texts
 from payback.config import Settings
-from payback.db.models import User, UserRole
+from payback.db.models import User
 from payback.db.repositories.expenses import ExpensesRepo
 from payback.planfix.directories import DirectoryCache
 from payback.services.people import (
     EmployeeRequiredError,
     ManagerRequiredError,
-    NotRegisteredError,
     PeopleService,
 )
 
@@ -30,7 +29,6 @@ def create_router() -> Router:
         await message.answer(
             texts.help_text(
                 role,
-                dev_mode=settings.dev_mode,
                 allow_no_receipt=settings.allow_no_receipt,
             )
         )
@@ -86,32 +84,6 @@ def create_router() -> Router:
             await message.answer(texts.NO_PENDING)
             return
         await message.answer(texts.pending_expenses(expenses))
-
-    @router.message(Command("as"))
-    async def cmd_as(
-        message: Message,
-        command: CommandObject,
-        settings: Settings,
-        people: PeopleService,
-    ) -> None:
-        """Switch role for one-account manual testing when ``DEV_MODE`` is on."""
-        if not settings.dev_mode or message.from_user is None:
-            return
-        raw = (command.args or "").strip().lower()
-        if raw not in {UserRole.EMPLOYEE.value, UserRole.MANAGER.value}:
-            await message.answer(texts.DEV_AS_USAGE)
-            return
-        try:
-            user = await people.switch_dev_role(message.from_user.id, UserRole(raw))
-        except NotRegisteredError:
-            await message.answer(texts.DEV_AS_NEED_REGISTER)
-            return
-        await message.answer(
-            texts.DEV_AS_SWITCHED.format(
-                role=texts.role_name(user.role),
-                menu=texts.menu(user.role, allow_no_receipt=settings.allow_no_receipt),
-            )
-        )
 
     return router
 

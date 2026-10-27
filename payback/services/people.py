@@ -27,10 +27,6 @@ class AlreadyRegisteredError(ValueError):
     """The Telegram account already belongs to a local user."""
 
 
-class NotRegisteredError(LookupError):
-    """The Telegram account has no local user yet."""
-
-
 class StaffMemberNotFoundError(LookupError):
     """A staff action targeted a user the manager cannot manage."""
 
@@ -175,14 +171,6 @@ class PeopleService:
         await self._users.link_planfix_user(manager, planfix_user_id)
         return manager
 
-    async def switch_dev_role(self, telegram_id: int, role: UserRole) -> User:
-        """Flip the caller's role for local testing (``DEV_MODE`` /as)."""
-        user = await self._users.get_by_telegram_id(telegram_id)
-        if user is None or not user.is_active:
-            raise NotRegisteredError("active registered user required")
-        await self._users.set_role(user, role)
-        return user
-
     async def verify_manager(self, telegram_id: int) -> User:
         """Return the active manager identified by a Telegram ID."""
         user = await self._users.get_by_telegram_id(telegram_id)
@@ -212,7 +200,6 @@ __all__ = [
     "InviteUnavailableError",
     "InvitedRegistration",
     "ManagerRequiredError",
-    "NotRegisteredError",
     "PeopleService",
     "PlanfixLinkConflictError",
     "StaffMemberNotFoundError",

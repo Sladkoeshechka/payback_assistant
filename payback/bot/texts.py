@@ -44,9 +44,6 @@ INVITE_PROMPT = "Кого вы хотите пригласить?"
 INVITE_CREATED = "Приглашение создано: {link}\nОно действует 72 часа и используется один раз."
 OWNER_REGISTERED = "Готово!"
 GENERIC_ERROR = "Произошла ошибка. Попробуйте ещё раз позже."
-DEV_AS_USAGE = "Использование: /as employee или /as manager"
-DEV_AS_NEED_REGISTER = "Сначала зарегистрируйтесь через /start."
-DEV_AS_SWITCHED = "Роль переключена: {role}.\n{menu}"
 RECOGNIZING_RECEIPT = "Распознаю чек…"
 RECEIPT_RECOGNIZED = "Чек на {amount} от {purchased_at:%d.%m.%Y %H:%M}."
 QR_NOT_FOUND = "Не удалось распознать QR-код на чеке."
@@ -121,7 +118,6 @@ def role_name(role: str) -> str:
 def help_text(
     role: UserRole | None,
     *,
-    dev_mode: bool = False,
     allow_no_receipt: bool = True,
 ) -> str:
     """Return role-aware command help."""
@@ -149,8 +145,6 @@ def help_text(
         )
     else:
         return "Сначала зарегистрируйтесь через /start или по приглашению."
-    if dev_mode:
-        lines.append("/as employee|manager — сменить роль (только DEV_MODE)")
     return "\n".join(lines)
 
 
@@ -307,9 +301,6 @@ __all__ = [
     "DECISION_FORBIDDEN",
     "DECISION_IN_PLANFIX",
     "DECISION_NOT_FOUND",
-    "DEV_AS_NEED_REGISTER",
-    "DEV_AS_SWITCHED",
-    "DEV_AS_USAGE",
     "EDIT_PICK",
     "EDIT_QR_LOCKED",
     "EMPLOYEE_DEACTIVATED",
