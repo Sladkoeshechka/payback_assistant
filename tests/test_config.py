@@ -48,9 +48,7 @@ def test_dev_mode_without_allow_is_rejected(
         Settings()
 
 
-def test_dev_mode_with_allow_loads(
-    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dev_mode_with_allow_loads(env: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEV_MODE", "true")
     monkeypatch.setenv("ALLOW_DEV_MODE", "true")
 

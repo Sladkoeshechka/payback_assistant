@@ -28,7 +28,11 @@ from payback.db.repositories.users import UsersRepo
 from payback.planfix.directories import DirectoryCache
 from payback.planfix.exceptions import PlanfixError
 from payback.planfix.models import PlanfixDirectoryEntry, PlanfixSchema
-from payback.receipts.fiscal import FiscalParseError, parse_fiscal_qr
+from payback.receipts.fiscal import (
+    AmbiguousFiscalQRError,
+    FiscalParseError,
+    resolve_fiscal_receipt,
+)
 from payback.receipts.qr import QRCodeNotFoundError, decode_qr
 from payback.receipts.validation import (
     ReceiptValidationError,
@@ -579,9 +583,12 @@ async def _process_receipt_image(
         image_content_type=content_type,
     )
     try:
-        qr_value = await decode_qr(image_bytes)
-        receipt = parse_fiscal_qr(qr_value)
+        qr_values = await decode_qr(image_bytes)
+        receipt = resolve_fiscal_receipt(qr_values)
         validate_receipt(receipt, settings)
+    except AmbiguousFiscalQRError:
+        await message.answer(texts.QR_AMBIGUOUS)
+        return
     except (QRCodeNotFoundError, FiscalParseError, ReceiptValidationError):
         await _save_draft(state, draft)
         await state.set_state(ExpenseSubmission.awaiting_qr_choice)

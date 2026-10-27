@@ -10,6 +10,10 @@ class FiscalParseError(ValueError):
     """A QR value does not contain a complete fiscal receipt payload."""
 
 
+class AmbiguousFiscalQRError(ValueError):
+    """More than one readable fiscal QR was found on the same image."""
+
+
 @dataclass(frozen=True, slots=True)
 class FiscalReceipt:
     """The values the bot needs from a Russian fiscal receipt QR code."""
@@ -49,6 +53,21 @@ def parse_fiscal_qr(value: str) -> FiscalReceipt:
     )
 
 
+def resolve_fiscal_receipt(values: list[str]) -> FiscalReceipt:
+    """Pick the single fiscal payload; ignore non-fiscal noise; refuse if several fiscals."""
+    receipts: list[FiscalReceipt] = []
+    for value in values:
+        try:
+            receipts.append(parse_fiscal_qr(value))
+        except FiscalParseError:
+            continue
+    if not receipts:
+        raise FiscalParseError("No fiscal QR payload found")
+    if len(receipts) > 1:
+        raise AmbiguousFiscalQRError("Multiple fiscal QR codes found")
+    return receipts[0]
+
+
 def _parse_datetime(value: str) -> datetime:
     for date_format, expected_length in _DATE_FORMATS:
         if len(value) != expected_length:
@@ -77,4 +96,10 @@ def _parse_document_type(value: str) -> int:
         raise FiscalParseError(f"Invalid fiscal document type: {value!r}") from error
 
 
-__all__ = ["FiscalParseError", "FiscalReceipt", "parse_fiscal_qr"]
+__all__ = [
+    "AmbiguousFiscalQRError",
+    "FiscalParseError",
+    "FiscalReceipt",
+    "parse_fiscal_qr",
+    "resolve_fiscal_receipt",
+]

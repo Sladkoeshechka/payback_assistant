@@ -23,27 +23,29 @@ class QRDecoderUnavailableError(RuntimeError):
 class QRDecoder(Protocol):
     """A synchronous image decoder run outside the event loop."""
 
-    def decode(self, image: bytes) -> str | None: ...
+    def decode(self, image: bytes) -> list[str]: ...
 
 
 class OpenCVQRCodeDecoder:
     """Decode QR codes with OpenCV, which has no system-library dependency."""
 
-    def decode(self, image: bytes) -> str | None:
+    def decode(self, image: bytes) -> list[str]:
         matrix = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
         if matrix is None:
-            return None
+            return []
         try:
-            value, _, _ = cv2.QRCodeDetector().detectAndDecode(matrix)
+            ok, values, _, _ = cv2.QRCodeDetector().detectAndDecodeMulti(matrix)
         except cv2.error:
-            return None
-        return value or None
+            return []
+        if not ok:
+            return []
+        return [value for value in values if value]
 
 
 class PyzbarQRCodeDecoder:
     """Optional ZBar implementation for receipt photos OpenCV cannot read."""
 
-    def decode(self, image: bytes) -> str | None:
+    def decode(self, image: bytes) -> list[str]:
         try:
             from pyzbar.pyzbar import decode
         except (ImportError, OSError) as error:
@@ -53,25 +55,27 @@ class PyzbarQRCodeDecoder:
 
         matrix = cv2.imdecode(np.frombuffer(image, dtype=np.uint8), cv2.IMREAD_COLOR)
         if matrix is None:
-            return None
-        matches = decode(matrix)
-        if not matches:
-            return None
-        encoded_value = matches[0].data
-        if not isinstance(encoded_value, bytes):
-            return None
-        try:
-            return encoded_value.decode("utf-8")
-        except UnicodeDecodeError:
-            return None
+            return []
+        payloads: list[str] = []
+        for match in decode(matrix):
+            encoded_value = match.data
+            if not isinstance(encoded_value, bytes):
+                continue
+            try:
+                payloads.append(encoded_value.decode("utf-8"))
+            except UnicodeDecodeError:
+                continue
+        return payloads
 
 
-async def decode_qr(image: bytes, decoders: Iterable[QRDecoder] = (OpenCVQRCodeDecoder(),)) -> str:
-    """Try enabled decoders in a worker thread and return the first QR payload."""
+async def decode_qr(
+    image: bytes, decoders: Iterable[QRDecoder] = (OpenCVQRCodeDecoder(),)
+) -> list[str]:
+    """Try enabled decoders in a worker thread; return every payload from the first hit."""
     for decoder in decoders:
-        value = await asyncio.to_thread(decoder.decode, image)
-        if value is not None:
-            return value
+        values = await asyncio.to_thread(decoder.decode, image)
+        if values:
+            return values
     raise QRCodeNotFoundError("QR code was not found or could not be read")
 
 

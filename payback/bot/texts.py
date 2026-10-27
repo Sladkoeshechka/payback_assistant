@@ -47,6 +47,9 @@ GENERIC_ERROR = "Произошла ошибка. Попробуйте ещё р
 RECOGNIZING_RECEIPT = "Распознаю чек…"
 RECEIPT_RECOGNIZED = "Чек на {amount} от {purchased_at:%d.%m.%Y %H:%M}."
 QR_NOT_FOUND = "Не удалось распознать QR-код на чеке."
+QR_AMBIGUOUS = (
+    "На фото несколько фискальных QR-кодов. Пришлите снимок с одним чеком."
+)
 ASK_AMOUNT = "Введите сумму покупки."
 ASK_DATE = "Введите дату покупки в формате ДД.ММ.ГГГГ."
 ASK_CATEGORY = "Выберите категорию расхода:"
@@ -333,6 +336,7 @@ __all__ = [
     "PLANFIX_LINK_CONFLICT",
     "PLANFIX_UNAVAILABLE",
     "PLANFIX_USERS_EMPTY",
+    "QR_AMBIGUOUS",
     "QR_NOT_FOUND",
     "RECEIPT_RECOGNIZED",
     "RECOGNIZING_RECEIPT",
