@@ -163,6 +163,10 @@ class SubmissionService:
                 image_content_type=image_content_type,
             )
         except PlanfixError:
+            logger.exception(
+                "Planfix publish failed; expense kept as pending_submission",
+                extra={"expense_id": expense.id},
+            )
             return expense
 
     async def _publish(
