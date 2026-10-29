@@ -199,6 +199,8 @@ class SubmissionService:
                 ),
             )
             await self._expenses.set_planfix_task(expense, task_id)
+            # Survive later upload/attach failures or process death before handler commit.
+            await self._expenses.commit()
 
         assert expense.planfix_task_id is not None
 
@@ -209,6 +211,7 @@ class SubmissionService:
                 content_type=image_content_type,
             )
             await self._expenses.set_planfix_file(expense, file_id)
+            await self._expenses.commit()
 
         if (
             expense.planfix_file_id is not None

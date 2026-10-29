@@ -8,7 +8,12 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 
 from payback.config import PlanfixSettings
-from payback.planfix.exceptions import PlanfixError, PlanfixNotFound, PlanfixScopeDenied
+from payback.planfix.exceptions import (
+    PlanfixError,
+    PlanfixIdempotencyConflict,
+    PlanfixNotFound,
+    PlanfixScopeDenied,
+)
 from payback.planfix.models import (
     PlanfixComment,
     PlanfixDirectory,
@@ -19,7 +24,15 @@ from payback.planfix.models import (
 _DEFAULT_TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 _MAX_ATTEMPTS = 3
 _PAGE_SIZE = 100
+# Complex filter types from PlanFix REST docs (task/list).
+_FILTER_CREATED = 12
+_FILTER_OBJECT = 325
 Sleep = Callable[[float], Awaitable[None]]
+
+
+def expense_task_marker(expense_id: int) -> str:
+    """Stable token embedded in the Planfix task description for idempotent recovery."""
+    return f"[payback-expense:{expense_id}]"
 
 
 class PlanfixClient:
@@ -74,22 +87,73 @@ class PlanfixClient:
         manager_planfix_user_id: int | None,
         custom_field_data: list[dict[str, object]],
     ) -> int:
+        marker = expense_task_marker(expense_id)
+        full_description = f"{description}\n\n{marker}" if description else marker
         payload: dict[str, object] = {
             "name": name,
+            "description": full_description,
             "object": {"id": self._object_id},
             "customFieldData": custom_field_data,
         }
         if manager_planfix_user_id is not None:
             payload["assignees"] = {"users": [{"id": f"user:{manager_planfix_user_id}"}]}
-        if description:
-            payload["description"] = description
-        response = await self._request(
-            "POST",
-            "/task/",
-            json=payload,
-            headers={"Idempotency-Key": self.task_idempotency_key(expense_id)},
-        )
+        try:
+            response = await self._request(
+                "POST",
+                "/task/",
+                json=payload,
+                headers={"Idempotency-Key": self.task_idempotency_key(expense_id)},
+            )
+        except PlanfixIdempotencyConflict as error:
+            if error.task_id is not None:
+                return error.task_id
+            recovered = await self.find_task_id_by_expense_marker(expense_id)
+            if recovered is not None:
+                return recovered
+            raise PlanfixError(
+                "Planfix Idempotency-Key already used and existing task was not found"
+            ) from error
         return _required_int(response, "id", "task creation")
+
+    async def find_task_id_by_expense_marker(self, expense_id: int) -> int | None:
+        """Locate a task created for ``expense_id`` via the description marker."""
+        marker = expense_task_marker(expense_id)
+        offset = 0
+        while True:
+            response = await self._request(
+                "POST",
+                "/task/list",
+                json={
+                    "offset": offset,
+                    "pageSize": _PAGE_SIZE,
+                    "fields": "id,name,description",
+                    "filters": [
+                        {
+                            "type": _FILTER_OBJECT,
+                            "operator": "equal",
+                            "value": self._object_id,
+                        },
+                        {
+                            "type": _FILTER_CREATED,
+                            "operator": "equal",
+                            "value": {"dateType": "last", "dateValue": "14"},
+                        },
+                    ],
+                },
+            )
+            tasks = response.get("tasks")
+            if not isinstance(tasks, list):
+                raise PlanfixError("Planfix returned malformed task list")
+            for item in tasks:
+                if not isinstance(item, dict):
+                    continue
+                description = item.get("description") if isinstance(item.get("description"), str) else ""
+                name = item.get("name") if isinstance(item.get("name"), str) else ""
+                if marker in description or marker in name:
+                    return _required_int(item, "id", "task list entry")
+            if len(tasks) < _PAGE_SIZE:
+                return None
+            offset += _PAGE_SIZE
 
     async def get_task(self, task_id: int, field_ids: Iterable[int] = ()) -> dict[str, Any]:
         fields = ["id", "name", "status", "object", "assigner", "assignees", "participants"]
@@ -256,6 +320,10 @@ def _parse_response(response: httpx.Response) -> dict[str, Any]:
         raise PlanfixNotFound(message)
     if code == 5 or "scope denied" in message.lower():
         raise PlanfixScopeDenied(message)
+    if "idempotency-key is already used" in message.lower():
+        raw_id = payload.get("id")
+        task_id = raw_id if isinstance(raw_id, int) and not isinstance(raw_id, bool) else None
+        raise PlanfixIdempotencyConflict(message, task_id=task_id)
     raise PlanfixError(message)
 
 
@@ -321,4 +389,4 @@ def _directory_entry(value: object, title_field_id: int) -> PlanfixDirectoryEntr
     raise PlanfixError("Directory entry has no title data; check its title field configuration")
 
 
-__all__ = ["PlanfixClient"]
+__all__ = ["PlanfixClient", "expense_task_marker"]

@@ -42,7 +42,7 @@ async def test_create_task_uses_card_shape_and_stable_idempotency_key(
     assert PlanfixClient.task_idempotency_key(42) != PlanfixClient.task_idempotency_key(43)
     assert json.loads(request.content) == {
         "name": "Expense",
-        "description": "Taxi",
+        "description": "Taxi\n\n[payback-expense:42]",
         "object": {"id": 17},
         "assignees": {"users": [{"id": "user:3"}]},
         "customFieldData": [{"field": {"id": 141074}, "value": 500.0}],
@@ -69,6 +69,75 @@ async def test_create_task_omits_assignees_when_manager_unlinked(
 
     payload = json.loads(route.calls[0].request.content)
     assert "assignees" not in payload
+    assert payload["description"] == "[payback-expense:7]"
+    await client.aclose()
+
+
+@respx.mock
+async def test_create_task_recovers_when_idempotency_key_already_used(
+    planfix_settings: Settings,
+) -> None:
+    respx.post("https://example.planfix.ru/rest/task/").mock(
+        return_value=httpx.Response(
+            200,
+            json={"result": "fail", "code": 15, "error": "Idempotency-Key is already used"},
+        )
+    )
+    respx.post("https://example.planfix.ru/rest/task/list").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "success",
+                "tasks": [
+                    {
+                        "id": 501,
+                        "name": "Expense",
+                        "description": "Taxi\n\n[payback-expense:42]",
+                    }
+                ],
+            },
+        )
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    task_id = await client.create_task(
+        42,
+        name="Expense",
+        description="Taxi",
+        manager_planfix_user_id=3,
+        custom_field_data=[],
+    )
+
+    assert task_id == 501
+    await client.aclose()
+
+
+@respx.mock
+async def test_create_task_uses_task_id_from_idempotency_fail_payload(
+    planfix_settings: Settings,
+) -> None:
+    respx.post("https://example.planfix.ru/rest/task/").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "fail",
+                "error": "Idempotency-Key is already used",
+                "id": 777,
+            },
+        )
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    assert (
+        await client.create_task(
+            9,
+            name="Expense",
+            description=None,
+            manager_planfix_user_id=None,
+            custom_field_data=[],
+        )
+        == 777
+    )
     await client.aclose()
 
 
