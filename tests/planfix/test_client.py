@@ -41,7 +41,7 @@ async def test_create_task_uses_card_shape_and_stable_idempotency_key(
     assert PlanfixClient.task_idempotency_key(42) == PlanfixClient.task_idempotency_key(42)
     assert PlanfixClient.task_idempotency_key(42) != PlanfixClient.task_idempotency_key(43)
     assert json.loads(request.content) == {
-        "name": "Expense",
+        "name": "Expense [payback-expense:42]",
         "description": "Taxi\n\n[payback-expense:42]",
         "object": {"id": 17},
         "assignees": {"users": [{"id": "user:3"}]},
@@ -69,6 +69,7 @@ async def test_create_task_omits_assignees_when_manager_unlinked(
 
     payload = json.loads(route.calls[0].request.content)
     assert "assignees" not in payload
+    assert payload["name"] == "Expense [payback-expense:7]"
     assert payload["description"] == "[payback-expense:7]"
     await client.aclose()
 
@@ -91,7 +92,7 @@ async def test_create_task_recovers_when_idempotency_key_already_used(
                 "tasks": [
                     {
                         "id": 501,
-                        "name": "Expense",
+                        "name": "Expense [payback-expense:42]",
                         "description": "Taxi\n\n[payback-expense:42]",
                     }
                 ],
@@ -109,6 +110,42 @@ async def test_create_task_recovers_when_idempotency_key_already_used(
     )
 
     assert task_id == 501
+    await client.aclose()
+
+
+@respx.mock
+async def test_create_task_retries_with_new_key_when_marker_missing(
+    planfix_settings: Settings,
+) -> None:
+    create = respx.post("https://example.planfix.ru/rest/task/")
+    create.side_effect = [
+        httpx.Response(
+            200,
+            json={"result": "fail", "error": "Idempotency-Key is already used"},
+        ),
+        httpx.Response(200, json=load_fixture("task_create")),
+    ]
+    respx.post("https://example.planfix.ru/rest/task/list").mock(
+        return_value=httpx.Response(200, json={"result": "success", "tasks": []})
+    )
+    client = PlanfixClient(planfix_settings.planfix)
+
+    task_id = await client.create_task(
+        2,
+        name="Expense",
+        description=None,
+        manager_planfix_user_id=None,
+        custom_field_data=[],
+    )
+
+    assert task_id == 36
+    assert len(create.calls) == 2
+    assert create.calls[0].request.headers["Idempotency-Key"] == (
+        PlanfixClient.task_idempotency_key(2, generation=0)
+    )
+    assert create.calls[1].request.headers["Idempotency-Key"] == (
+        PlanfixClient.task_idempotency_key(2, generation=1)
+    )
     await client.aclose()
 
 

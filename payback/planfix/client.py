@@ -25,13 +25,15 @@ _DEFAULT_TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 _MAX_ATTEMPTS = 3
 _PAGE_SIZE = 100
 # Complex filter types from PlanFix REST docs (task/list).
+_FILTER_NAME = 8
 _FILTER_CREATED = 12
 _FILTER_OBJECT = 325
+_MAX_IDEMPOTENCY_GENERATIONS = 3
 Sleep = Callable[[float], Awaitable[None]]
 
 
 def expense_task_marker(expense_id: int) -> str:
-    """Stable token embedded in the Planfix task description for idempotent recovery."""
+    """Stable token embedded in the Planfix task for idempotent recovery."""
     return f"[payback-expense:{expense_id}]"
 
 
@@ -74,9 +76,11 @@ class PlanfixClient:
             await self._client.aclose()
 
     @staticmethod
-    def task_idempotency_key(expense_id: int) -> str:
-        """Return a stable key for every attempted creation of one local expense."""
-        return str(uuid5(NAMESPACE_URL, f"payback-expense:{expense_id}"))
+    def task_idempotency_key(expense_id: int, *, generation: int = 0) -> str:
+        """Return a stable key for one local expense (and optional retry generation)."""
+        if generation <= 0:
+            return str(uuid5(NAMESPACE_URL, f"payback-expense:{expense_id}"))
+        return str(uuid5(NAMESPACE_URL, f"payback-expense:{expense_id}:g{generation}"))
 
     async def create_task(
         self,
@@ -88,66 +92,96 @@ class PlanfixClient:
         custom_field_data: list[dict[str, object]],
     ) -> int:
         marker = expense_task_marker(expense_id)
+        # Marker in both fields: name is filterable (type 8); description is human-visible too.
+        named = f"{name} {marker}"
         full_description = f"{description}\n\n{marker}" if description else marker
         payload: dict[str, object] = {
-            "name": name,
+            "name": named,
             "description": full_description,
             "object": {"id": self._object_id},
             "customFieldData": custom_field_data,
         }
         if manager_planfix_user_id is not None:
             payload["assignees"] = {"users": [{"id": f"user:{manager_planfix_user_id}"}]}
-        try:
-            response = await self._request(
-                "POST",
-                "/task/",
-                json=payload,
-                headers={"Idempotency-Key": self.task_idempotency_key(expense_id)},
-            )
-        except PlanfixIdempotencyConflict as error:
-            if error.task_id is not None:
-                return error.task_id
-            recovered = await self.find_task_id_by_expense_marker(expense_id)
-            if recovered is not None:
-                return recovered
-            raise PlanfixError(
-                "Planfix Idempotency-Key already used and existing task was not found"
-            ) from error
-        return _required_int(response, "id", "task creation")
+
+        last_error: PlanfixIdempotencyConflict | None = None
+        for generation in range(_MAX_IDEMPOTENCY_GENERATIONS):
+            try:
+                response = await self._request(
+                    "POST",
+                    "/task/",
+                    json=payload,
+                    headers={
+                        "Idempotency-Key": self.task_idempotency_key(
+                            expense_id, generation=generation
+                        )
+                    },
+                )
+            except PlanfixIdempotencyConflict as error:
+                last_error = error
+                if error.task_id is not None:
+                    return error.task_id
+                recovered = await self.find_task_id_by_expense_marker(expense_id)
+                if recovered is not None:
+                    return recovered
+                # Key burned (often by a pre-marker create or deleted task) — try next generation.
+                continue
+            return _required_int(response, "id", "task creation")
+
+        raise PlanfixError(
+            "Planfix Idempotency-Key already used and existing task was not found"
+        ) from last_error
 
     async def find_task_id_by_expense_marker(self, expense_id: int) -> int | None:
-        """Locate a task created for ``expense_id`` via the description marker."""
+        """Locate a task created for ``expense_id`` via the expense marker."""
         marker = expense_task_marker(expense_id)
+        filter_sets: tuple[list[dict[str, object]], ...] = (
+            [
+                {"type": _FILTER_OBJECT, "operator": "equal", "value": self._object_id},
+                {"type": _FILTER_NAME, "operator": "equal", "value": marker},
+            ],
+            [
+                {"type": _FILTER_OBJECT, "operator": "equal", "value": self._object_id},
+                {
+                    "type": _FILTER_CREATED,
+                    "operator": "equal",
+                    "value": {"dateType": "last", "dateValue": "14"},
+                },
+            ],
+            [{"type": _FILTER_OBJECT, "operator": "equal", "value": self._object_id}],
+        )
+        for filters in filter_sets:
+            found = await self._scan_tasks_for_marker(marker, filters=filters)
+            if found is not None:
+                return found
+        return None
+
+    async def _scan_tasks_for_marker(
+        self,
+        marker: str,
+        *,
+        filters: list[dict[str, object]],
+    ) -> int | None:
         offset = 0
         while True:
-            response = await self._request(
-                "POST",
-                "/task/list",
-                json={
-                    "offset": offset,
-                    "pageSize": _PAGE_SIZE,
-                    "fields": "id,name,description",
-                    "filters": [
-                        {
-                            "type": _FILTER_OBJECT,
-                            "operator": "equal",
-                            "value": self._object_id,
-                        },
-                        {
-                            "type": _FILTER_CREATED,
-                            "operator": "equal",
-                            "value": {"dateType": "last", "dateValue": "14"},
-                        },
-                    ],
-                },
-            )
-            tasks = response.get("tasks")
-            if not isinstance(tasks, list):
-                raise PlanfixError("Planfix returned malformed task list")
+            try:
+                response = await self._request(
+                    "POST",
+                    "/task/list",
+                    json={
+                        "offset": offset,
+                        "pageSize": _PAGE_SIZE,
+                        "fields": "id,name,description",
+                        "filters": filters,
+                    },
+                )
+            except PlanfixError:
+                return None
+            tasks = _task_list_items(response)
             for item in tasks:
-                if not isinstance(item, dict):
-                    continue
-                description = item.get("description") if isinstance(item.get("description"), str) else ""
+                description = (
+                    item.get("description") if isinstance(item.get("description"), str) else ""
+                )
                 name = item.get("name") if isinstance(item.get("name"), str) else ""
                 if marker in description or marker in name:
                     return _required_int(item, "id", "task list entry")
@@ -299,6 +333,20 @@ class PlanfixClient:
             return _parse_response(response)
 
         raise AssertionError("unreachable")
+
+
+def _task_list_items(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Normalize Planfix task/list envelopes (list or nested object)."""
+    tasks = payload.get("tasks")
+    if isinstance(tasks, list):
+        return [item for item in tasks if isinstance(item, dict)]
+    if isinstance(tasks, dict):
+        nested = tasks.get("task")
+        if isinstance(nested, list):
+            return [item for item in nested if isinstance(item, dict)]
+        if isinstance(nested, dict):
+            return [nested]
+    return []
 
 
 def _parse_response(response: httpx.Response) -> dict[str, Any]:
